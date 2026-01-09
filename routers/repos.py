@@ -130,7 +130,8 @@ async def get_config(
     
     return {
         "current_repo": active_repo.id if active_repo else None,
-        "is_guest": user is None
+        "is_guest": user is None,
+        "use_local_llm": False
     }
 
 def _get_repo_chunk_count(repo: Repository) -> int:
