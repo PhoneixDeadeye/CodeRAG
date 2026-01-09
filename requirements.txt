@@ -1,0 +1,45 @@
+# Core AI/ML Dependencies
+langchain==0.1.16
+langchain-community==0.0.34
+langchain-google-genai==1.0.3
+faiss-cpu==1.8.0
+
+# Code Processing
+gitpython==3.1.43
+tiktoken==0.6.0
+tree-sitter==0.21.3
+tree-sitter-languages==1.10.2
+esprima==4.0.1
+
+# Search & Retrieval
+rank_bm25==0.2.2
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+requests>=2.31.0
+httpx>=0.27.0
+aiofiles>=23.2.0
+
+# Database
+sqlalchemy>=2.0.0
+
+# Authentication & Security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Resilience
+tenacity>=8.2.0
+
+# Configuration
+python-dotenv==1.0.1
+
+# Development
+pytest>=7.0.0
+pytest-asyncio>=0.23.0
+httpx>=0.27.0
+# black>=23.0.0
+# mypy>=1.0.0
