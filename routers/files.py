@@ -3,16 +3,22 @@ from sqlalchemy.orm import Session
 from database import get_db, User, Repository
 from auth import get_optional_user
 from pydantic import BaseModel, field_validator
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 import os
 import re
+import time
 from functools import lru_cache
 from config import settings
 import logging
 from utils import validate_safe_path, generate_github_link
 
-router = APIRouter(prefix="/api", tags=["files"])
+router = APIRouter(prefix="/api/v1", tags=["files"])
 logger = logging.getLogger("CodeRAG")
+
+# --- File Tree Cache ---
+# Cache file trees with 5-minute TTL to avoid repeated filesystem traversals
+_file_tree_cache: Dict[str, Tuple[List[Dict], float]] = {}
+FILE_TREE_CACHE_TTL = 300  # 5 minutes
 
 # -- Models --
 class FileNode(BaseModel):
@@ -162,6 +168,7 @@ async def get_file_tree(
     """
     Retrieve the file tree structure for a repository.
     Works for both authenticated users and guests.
+    Uses caching for improved performance.
     """
     repo = get_repo_for_user_or_guest(repo_id, user, db)
     
@@ -174,6 +181,19 @@ async def get_file_tree(
     repo_path = repo.local_path
     if not os.path.exists(repo_path):
         return {"tree": [], "repo_url": repo.url}
+
+    # Check cache first
+    current_time = time.time()
+    cache_key = repo_path
+    
+    if cache_key in _file_tree_cache:
+        cached_tree, cached_at = _file_tree_cache[cache_key]
+        if current_time - cached_at < FILE_TREE_CACHE_TTL:
+            logger.debug(f"File tree cache hit for {repo_path}")
+            return {"tree": cached_tree, "repo_url": repo.url, "cached": True}
+        else:
+            # Cache expired, remove it
+            del _file_tree_cache[cache_key]
 
     def build_tree(path: str) -> List[FileNode]:
         nodes = []
@@ -194,7 +214,14 @@ async def get_file_tree(
             logger.warning(f"Permission denied accessing {path}: {e}")
         return nodes
     
-    return {"tree": build_tree(repo_path), "repo_url": repo.url}
+    # Build tree and cache it
+    tree = build_tree(repo_path)
+    # Convert to dict for caching (Pydantic models aren't directly cacheable)
+    tree_dicts = [node.model_dump() for node in tree]
+    _file_tree_cache[cache_key] = (tree_dicts, current_time)
+    logger.debug(f"File tree cached for {repo_path}")
+    
+    return {"tree": tree, "repo_url": repo.url}
 
 @router.get("/file/{file_path:path}")
 async def get_file_content(

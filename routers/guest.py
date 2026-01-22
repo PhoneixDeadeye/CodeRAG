@@ -13,7 +13,7 @@ from typing import List, Optional
 from datetime import datetime, timezone
 import logging
 
-router = APIRouter(prefix="/api/guest", tags=["guest"])
+router = APIRouter(prefix="/api/v1/guest", tags=["guest"])
 logger = logging.getLogger("CodeRAG")
 
 

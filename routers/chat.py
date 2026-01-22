@@ -1,16 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from database import get_db, User, Repository, ChatSession, ChatMessage, UsageLog, Feedback
 from auth import get_optional_user, get_current_user, get_guest_session_id
 from pydantic import BaseModel, field_validator
-from typing import Optional, List
+from typing import Optional, List, AsyncGenerator
 from datetime import datetime, timezone
 import logging
+import json
+import asyncio
 import rag_engine
 from rate_limiter import check_chat_limit
 from utils import generate_github_link
 
-router = APIRouter(prefix="/api", tags=["chat"])
+router = APIRouter(prefix="/api/v1", tags=["chat"])
 logger = logging.getLogger("CodeRAG")
 
 # -- Models --
@@ -103,8 +106,8 @@ async def chat(
                 detail="No repository available. Please ingest a repository first using the Repositories option in the sidebar."
             )
         
-        # Guest mode: No session persistence
-        chain = rag_engine.get_qa_chain(repo.vector_db_path)
+        # Guest mode: No session persistence, but use cached chain for performance
+        chain = rag_engine.get_cached_qa_chain(repo.vector_db_path)
         if not chain:
             raise HTTPException(status_code=500, detail="Could not load QA chain")
         
@@ -197,8 +200,8 @@ async def chat(
         db.rollback()
         logger.warning("Failed to save usage log")
 
-    # Generate response
-    chain = rag_engine.get_qa_chain(repo.vector_db_path)
+    # Generate response using cached QA chain for performance
+    chain = rag_engine.get_cached_qa_chain(repo.vector_db_path)
     if not chain:
         raise HTTPException(status_code=500, detail="Could not load QA chain")
     
@@ -277,3 +280,80 @@ async def submit_feedback(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save feedback: {str(e)}")
     return {"status": "success"}
+
+
+# --- Streaming Chat Endpoint ---
+class StreamingChatRequest(BaseModel):
+    query: str
+    repo_id: Optional[str] = None
+
+
+async def generate_stream(text: str) -> AsyncGenerator[str, None]:
+    """Simulate streaming by yielding words progressively."""
+    words = text.split()
+    for i, word in enumerate(words):
+        yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
+        await asyncio.sleep(0.02)  # Small delay for streaming effect
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
+@router.post("/chat/stream")
+async def chat_stream(
+    request: StreamingChatRequest,
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
+    guest_session_id: Optional[str] = Depends(get_guest_session_id)
+) -> StreamingResponse:
+    """
+    Streaming chat endpoint using Server-Sent Events (SSE).
+    
+    Returns tokens progressively for a more responsive UX.
+    Client should handle 'text/event-stream' content type.
+    """
+    # Find repo
+    if request.repo_id:
+        repo = db.query(Repository).filter(
+            Repository.id == request.repo_id,
+            Repository.status == "ready"
+        ).first()
+    elif user:
+        repo = db.query(Repository).filter(
+            Repository.user_id == user.id,
+            Repository.status == "ready"
+        ).order_by(Repository.updated_at.desc()).first()
+    elif guest_session_id:
+        repo = db.query(Repository).filter(
+            Repository.user_id == guest_session_id,
+            Repository.status == "ready"
+        ).order_by(Repository.updated_at.desc()).first()
+    else:
+        repo = db.query(Repository).filter(
+            Repository.status == "ready"
+        ).order_by(Repository.updated_at.desc()).first()
+    
+    if not repo:
+        async def error_stream():
+            yield f"data: {json.dumps({'type': 'error', 'message': 'No repository available'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+    
+    # Generate response
+    try:
+        chain = rag_engine.get_cached_qa_chain(repo.vector_db_path)
+        if not chain:
+            async def error_stream():
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Could not load QA chain'})}\n\n"
+            return StreamingResponse(error_stream(), media_type="text/event-stream")
+        
+        response = await rag_engine.invoke_chain_with_retry(chain, {"question": request.query})
+        answer = response.get("answer", "No response generated")
+        
+        return StreamingResponse(
+            generate_stream(answer),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
+        )
+    except Exception as e:
+        logger.exception("Streaming chat error")
+        async def error_stream():
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")

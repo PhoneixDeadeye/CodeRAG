@@ -38,16 +38,12 @@ class EnvValidator:
         return value
     
     def validate_google_api_key(self) -> bool:
-        """Validate Google API key if not using local LLM."""
-        use_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
-        
-        if not use_local:
-            api_key = self.require(
-                "GOOGLE_API_KEY",
-                "Required for cloud-based LLM (Gemini). Set USE_LOCAL_LLM=true to use Ollama instead."
-            )
-            return api_key is not None
-        return True
+        """Validate Google API key."""
+        api_key = self.require(
+            "GOOGLE_API_KEY",
+            "Required for cloud-based LLM (Gemini)."
+        )
+        return api_key is not None
     
     def validate_secret_key(self) -> bool:
         """Validate SECRET_KEY is not using default."""

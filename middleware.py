@@ -54,3 +54,20 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
                 f"Error: {str(e)} ({duration_ms:.2f}ms)"
             )
             raise
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware that adds security headers to all responses."""
+    
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        
+        # Add Security Headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # HSTS (Enable only if using HTTPS in production)
+        # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        return response

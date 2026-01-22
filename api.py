@@ -6,6 +6,7 @@ load_dotenv()
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 import logging
 import os
 
@@ -14,7 +15,7 @@ from database import init_db
 # Import Config
 from config import settings
 from logging_config import setup_logging
-from middleware import RequestTracingMiddleware
+from middleware import RequestTracingMiddleware, SecurityHeadersMiddleware
 from errors import APIError, api_error_handler
 
 # Configure Logging (Explicitly call setup)
@@ -48,22 +49,32 @@ app = FastAPI(
 def read_root():
     return {"message": "Welcome to CodeRAG API", "status": "running"}
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring and load balancers."""
+    return {
+        "status": "healthy",
+        "version": settings.APP_VERSION,
+        "service": settings.APP_NAME
+    }
+
 # Import Routers (after app creation to avoid circular deps if they imported app, but they don't here)
-from routers import auth, repos, files, sessions, chat, guest
+from routers import auth, repos, files, sessions, chat, guest, websocket
 
 # CORS
-if os.getenv("CORS_ORIGINS") == "*":
-    cors_origins = ["*"]
-else:
-    cors_origins = settings.CORS_ORIGINS
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add GZip compression for responses > 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# Add Security Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Add Request Tracing Middleware
 app.add_middleware(RequestTracingMiddleware)
@@ -78,6 +89,7 @@ app.include_router(files.router)
 app.include_router(sessions.router)
 app.include_router(chat.router)
 app.include_router(guest.router)
+app.include_router(websocket.router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -8,20 +8,21 @@ from auth import (
     verify_password,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from pydantic import BaseModel, validator, EmailStr
+from pydantic import BaseModel, field_validator, EmailStr
 from datetime import timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 import logging
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 # -- Models --
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters')

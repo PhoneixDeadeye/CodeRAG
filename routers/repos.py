@@ -17,7 +17,7 @@ import rag_engine
 from rate_limiter import check_ingest_limit
 import json
 
-router = APIRouter(prefix="/api", tags=["repos"])
+router = APIRouter(prefix="/api/v1", tags=["repos"])
 logger = logging.getLogger("CodeRAG")
 
 # -- Models --

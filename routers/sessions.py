@@ -3,13 +3,13 @@ from fastapi.responses import Response, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from database import get_db, User, ChatSession, ChatMessage, Repository
 from auth import get_current_user
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict
 from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
 # -- Models --
 class SessionDTO(BaseModel):
@@ -23,7 +23,8 @@ class SessionCreate(BaseModel):
     name: str
     repo_url: Optional[str] = None
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if not v or not v.strip():
             raise ValueError('Session name cannot be empty')
@@ -36,13 +37,15 @@ class MessageCreate(BaseModel):
     content: str
     sources: Optional[List[Dict]] = None
     
-    @validator('role')
+    @field_validator('role')
+    @classmethod
     def validate_role(cls, v):
         if v not in ['user', 'assistant']:
             raise ValueError('Role must be user or assistant')
         return v
     
-    @validator('content')
+    @field_validator('content')
+    @classmethod
     def validate_content(cls, v):
         if not v or not v.strip():
             raise ValueError('Message content cannot be empty')

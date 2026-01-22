@@ -115,6 +115,28 @@ npm run dev
 
 ---
 
+## 🧪 Testing
+
+### Backend Tests
+Run the backend test suite with pytest:
+```bash
+# From the project root
+pytest -v
+```
+
+### Frontend Tests
+Run the frontend test suite with Vitest:
+```bash
+cd frontend
+npm test
+```
+
+### Test Coverage
+- **Backend**: 39 tests covering auth, repos, sessions, chat, and ingestion
+- **Frontend**: 6 tests covering App, FileExplorer, and RepositoryIngestion components
+
+---
+
 ## 📖 Usage Guide
 
 1.  **Ingest a Repository**:

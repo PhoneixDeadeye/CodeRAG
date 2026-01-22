@@ -11,8 +11,7 @@ from langchain_community.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders.parsers import LanguageParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO)
+# Use central logging configuration
 logger = logging.getLogger(__name__)
 
 # --- Secret Scanning Patterns ---
@@ -122,14 +121,11 @@ def load_and_index_repo(url: str, repo_path: str, cache_file_path: str, force_re
     # SaaS safe: Wipe and Clone is safest for consistent state, though slower.
     # Optimization: 'git pull' if exists.
     
-    is_new_clone = True
-    
     if os.path.exists(repo_path):
         try:
             repo = git.Repo(repo_path)
             logger.info(f"🔄 updating existing repo at {repo_path}...")
             repo.remotes.origin.pull()
-            is_new_clone = False
         except Exception as e:
             logger.warning(f"⚠️ Could not pull, cleaning and re-cloning: {e}")
             if os.path.exists(repo_path):

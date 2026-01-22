@@ -3,11 +3,12 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
 from datetime import datetime, timezone
 from typing import Generator
 import uuid
+import os
 import logging
 
 logger = logging.getLogger(__name__)
 
-SQL_ALCHEMY_DATABASE_URL = "sqlite:///./coderag.db"
+SQL_ALCHEMY_DATABASE_URL = os.getenv("SQL_ALCHEMY_DATABASE_URL", "sqlite:///./coderag.db")
 
 engine = create_engine(
     SQL_ALCHEMY_DATABASE_URL, 

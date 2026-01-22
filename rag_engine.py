@@ -1,7 +1,8 @@
 import os
 import pickle
 import time
-from typing import Optional, List, Any, Dict
+from functools import lru_cache
+from typing import Optional, List, Any, Dict, Tuple
 from langchain_google_genai import GoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
@@ -16,12 +17,7 @@ from config import settings
 
 import logging
 
-
-# Configure Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Use central logging configuration
 logger = logging.getLogger(__name__)
 
 # Validate API Key
@@ -147,6 +143,58 @@ def create_vector_db(texts: List[Document], output_path: str) -> Optional[FAISS]
     return db
 
 
+# --- QA Chain Cache ---
+_qa_chain_cache: Dict[str, Tuple[Any, float]] = {}
+QA_CHAIN_CACHE_TTL = 3600  # 1 hour TTL for cached chains
+QA_CHAIN_CACHE_MAX_SIZE = 10  # Max number of cached chains to prevent memory bloat
+
+
+def get_cached_qa_chain(vector_db_path: str) -> Optional[ConversationalRetrievalChain]:
+    """
+    Get QA chain with caching for performance.
+    Caches chains with TTL to avoid rebuilding for the same repo.
+    Uses LRU eviction when cache is full.
+    """
+    current_time = time.time()
+    
+    # Check cache
+    if vector_db_path in _qa_chain_cache:
+        chain, cached_at = _qa_chain_cache[vector_db_path]
+        if current_time - cached_at < QA_CHAIN_CACHE_TTL:
+            logger.debug(f"✅ QA chain cache hit for {vector_db_path}")
+            # Update timestamp to implement LRU behavior
+            _qa_chain_cache[vector_db_path] = (chain, current_time)
+            return chain
+        else:
+            logger.debug(f"⏰ QA chain cache expired for {vector_db_path}")
+            del _qa_chain_cache[vector_db_path]
+    
+    # Build new chain
+    chain = get_qa_chain(vector_db_path)
+    if chain:
+        # Enforce max cache size with LRU eviction
+        if len(_qa_chain_cache) >= QA_CHAIN_CACHE_MAX_SIZE:
+            # Remove oldest entry
+            oldest_key = min(_qa_chain_cache.keys(), key=lambda k: _qa_chain_cache[k][1])
+            del _qa_chain_cache[oldest_key]
+            logger.info(f"♻️ Evicted oldest cache entry: {oldest_key}")
+        
+        _qa_chain_cache[vector_db_path] = (chain, current_time)
+        logger.info(f"💾 Cached QA chain for {vector_db_path} (cache size: {len(_qa_chain_cache)})")
+    
+    return chain
+
+
+def clear_qa_chain_cache(vector_db_path: Optional[str] = None) -> None:
+    """Clear QA chain cache. If path specified, only clear that path."""
+    global _qa_chain_cache
+    if vector_db_path:
+        _qa_chain_cache.pop(vector_db_path, None)
+    else:
+        _qa_chain_cache.clear()
+    logger.info("🗑️ QA chain cache cleared")
+
+
 def get_qa_chain(vector_db_path: str) -> Optional[ConversationalRetrievalChain]:
     """
     Creates a QA chain for a specific vector database path.
@@ -236,8 +284,29 @@ def get_qa_chain(vector_db_path: str) -> Optional[ConversationalRetrievalChain]:
 
 # --- Resilience Helpers ---
 from tenacity import retry, stop_after_attempt, wait_exponential
+import asyncio
+import traceback
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def invoke_chain_with_retry(chain, inputs: Dict[str, Any]):
-    """Reliable AI invocation with retries."""
-    return await chain.ainvoke(inputs)
+    """Reliable AI invocation with retries.
+    
+    Uses asyncio.to_thread() because ConversationalRetrievalChain's ainvoke()
+    doesn't work properly with GoogleGenerativeAI - it raises TypeError.
+    """
+    try:
+        # Run synchronous invoke in a thread to avoid blocking
+        logger.info(f"🔄 Invoking chain with inputs: {list(inputs.keys())}")
+        result = await asyncio.to_thread(chain.invoke, inputs)
+        logger.info("✅ Chain invocation successful")
+        return result
+    except TypeError as e:
+        logger.error(f"❌ TypeError during chain invocation: {e}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error during chain invocation: {type(e).__name__}: {e}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        raise
+
+

@@ -92,7 +92,6 @@ async def get_optional_user(
     except JWTError:
         # Invalid token, treat as guest
         logger.debug("Invalid token provided, treating as guest")
-        pass
     
     return None
 

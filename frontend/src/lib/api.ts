@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getGuestSessionId } from './guestSession';
 
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: '/api/v1',
 });
 
 // Request interceptor to add guest session ID for unauthenticated requests
@@ -142,11 +142,10 @@ export interface SessionResponse {
 }
 
 // Config Types
+// Config Types
 export interface AppConfig {
-    use_local_llm: boolean;
-    local_llm_model: string;
-    local_embedding_model: string;
     current_repo: string | null;
+    is_guest: boolean;
 }
 
 // === API Functions ===
