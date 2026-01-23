@@ -6,14 +6,16 @@
 
 ## 🚀 Key Features
 
--   **🧠 Semantic Understanding**: Uses **Google Gemini Embeddings** to understand the *intent* of your code, not just keywords.
--   **⚡ 1M+ Token Context**: Powered by **Gemini 1.5 Flash**, capable of analyzing massive files and dependency chains in a single pass.
--   **🔍 Source Citations**: Every answer credits the specific file and line numbers used to generate the response.
+-   **🧠 Semantic Understanding**: Uses **Google Gemini Embeddings** to understand the *intent* of your code.
+-   **⚡ 1M+ Token Context**: Powered by **Gemini 2.0 Flash Lite**, capable of analyzing massive files and dependency chains.
+-   **🔄 Code Diff Analysis**: AI-powered explanation of code changes between git revisions.
+-   **📊 RAG Evaluation**: Built-in pipeline to measure faithfulness and relevance of answers.
+-   **📈 Observability**: Prometheus metrics for monitoring LLM latency and ingestion jobs.
 -   **🕸️ Smart Ingestion**:
     -   Ignores noise (`node_modules`, `lockfiles`).
-    -   Respects language syntax (Python, JS, TS) via Tree-sitter chunking.
-    -   Fast cloning with `git clone --depth 1`.
--   **💻 Modern Stack**: built with **FastAPI** (Backend) and **React + Tailwind** (Frontend).
+    -   Respects language syntax (Python, JS, TS, Go, Rust) via Tree-sitter.
+    -   Background job processing for large repositories.
+-   **💻 Modern Stack**: FastAPI (Async), React + Tailwind, Playwright E2E Tests.
 
 ---
 
@@ -21,20 +23,21 @@
 
 ```mermaid
 graph LR
-    User[User] -->|Repo URL| Frontend[React Frontend]
+    User[User] -->|Repo/Diff| Frontend[React Frontend]
     User -->|Question| Frontend
     Frontend -->|API Config| API[FastAPI Backend]
     
-    subgraph Ingestion Pipeline
-        API -->|Clone & Chunk| Ingest[Ingestion Engine]
+    subgraph Background Workers
+        API -->|Enqueue Job| Worker[Async Worker]
+        Worker -->|Clone & Chunk| Ingest[Ingestion Engine]
         Ingest -->|Embed| Gemini[Google Gemini API]
         Gemini -->|Vectors| FAISS[FAISS Vector DB]
     end
     
     subgraph RAG Loop
-        API -->|Query| Retriever[MMR Retriever]
-        Retriever -->|Similar Chunks| FAISS
-        Retriever -->|Context| LLM[Gemini 1.5 Flash]
+        API -->|Query| Retriever[Hybrid Retriever (BM25 + Vector)]
+        Retriever -->|Re-rank| CrossEncoder[Cross-Encoder]
+        CrossEncoder -->|Context| LLM[Gemini 2.0 Flash Lite]
         LLM -->|Answer + Sources| API
     end
 ```
@@ -42,9 +45,10 @@ graph LR
 ## 🛠️ Tech Stack
 
 -   **Frontend**: React (Vite), TypeScript, Tailwind CSS, Lucide Icons.
--   **Backend**: Python, FastAPI, Uvicorn.
--   **AI/ML**: LangChain, Google Generative AI (Gemini), FAISS (Vector Store).
--   **Tools**: GitPython, Tree-sitter.
+-   **Backend**: Python, FastAPI, Uvicorn, SQLAlchemy (Async).
+-   **AI/ML**: LangChain, Google Generative AI (Gemini 2.0), FAISS, Sentence Transformers.
+-   **Tools**: GitPython, Tree-sitter, Playwright (E2E), Prometheus.
+
 
 ---
 
@@ -124,16 +128,20 @@ Run the backend test suite with pytest:
 pytest -v
 ```
 
-### Frontend Tests
-Run the frontend test suite with Vitest:
+### E2E Tests (Playwright)
+Run the full comprehensive test suite:
 ```bash
-cd frontend
+# Install browsers first
+npx playwright install
+
+# Run all E2E tests
 npm test
 ```
 
 ### Test Coverage
-- **Backend**: 39 tests covering auth, repos, sessions, chat, and ingestion
-- **Frontend**: 6 tests covering App, FileExplorer, and RepositoryIngestion components
+- **E2E**: Covers Auth, Multi-Repo Chat, Ingestion, and Diff Analysis workflows.
+- **Backend Unit**: API endpoints, RAG Engine, Job Worker.
+
 
 ---
 
@@ -151,6 +159,15 @@ npm test
 
 3.  **Inspect Sources**:
     -   Click **View Source Documents** below any AI response to see the raw code chunks retrieved by the engine.
+
+4.  **Analyze Diffs**:
+    -   Navigate to the **Files Explorer**.
+    -   Select a file and click "View History".
+    -   Select code changes to see an AI-generated explanation of the diff.
+
+5.  **Export Chat**:
+    -   Click the "Export" button in the chat header to download the session as Markdown, HTML, or JSON.
+
 
 ---
 
