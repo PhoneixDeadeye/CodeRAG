@@ -138,14 +138,27 @@ export const RepositoryIngestion: React.FC = () => {
             setBranch('');
             setAccessToken('');
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { detail?: string } }; message?: string };
-            const errorMessage = err.response?.data?.detail || err.message || 'Ingestion failed';
+            const err = error as { response?: { data?: { detail?: string | Array<{ msg: string }> } }; message?: string };
+            let errorMessage = 'Ingestion failed';
+
+            if (err.response?.data?.detail) {
+                const detail = err.response.data.detail;
+                if (Array.isArray(detail)) {
+                    errorMessage = detail.map(d => d.msg).join(', ');
+                } else {
+                    errorMessage = detail;
+                }
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+
             setCurrentJob(prev => prev ? {
                 ...prev,
                 status: 'failed',
                 logs: [...prev.logs, `Error: ${errorMessage}`],
                 error: errorMessage
             } : null);
+
         } finally {
             setIsSubmitting(false);
         }
