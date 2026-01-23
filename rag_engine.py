@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 
 # Validate API Key
 if not settings.GOOGLE_API_KEY:
-    logger.error("❌ GOOGLE_API_KEY not found in environment variables.")
-    raise EnvironmentError("GOOGLE_API_KEY is required for Gemini API access.")
+    logger.warning("⚠️ GOOGLE_API_KEY not found in environment variables. AI features will be disabled.")
+else:
+    logger.info("🔑 GOOGLE_API_KEY found.")
 
 # --- Singleton Instances (create once, reuse) ---
 _llm_instance = None
@@ -41,13 +42,21 @@ def get_llm() -> Any:
     if _llm_instance is not None:
         return _llm_instance
     
+    if not settings.GOOGLE_API_KEY:
+        logger.warning("⚠️ No Google API Key available. Returning None for LLM.")
+        return None
+    
     logger.info("🔧 Initializing Gemini 2.0 Flash Lite LLM client")
-    _llm_instance = GoogleGenerativeAI(
-        model="gemini-2.0-flash-lite",
-        temperature=0.2,
-        google_api_key=settings.GOOGLE_API_KEY
-    )
-    return _llm_instance
+    try:
+        _llm_instance = GoogleGenerativeAI(
+            model="gemini-2.0-flash-lite",
+            temperature=0.2,
+            google_api_key=settings.GOOGLE_API_KEY
+        )
+        return _llm_instance
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize LLM: {e}")
+        return None
 
 
 def get_embeddings() -> Any:
@@ -56,13 +65,21 @@ def get_embeddings() -> Any:
     
     if _embeddings_instance is not None:
         return _embeddings_instance
+
+    if not settings.GOOGLE_API_KEY:
+        logger.warning("⚠️ No Google API Key available. Returning None for Embeddings.")
+        return None
     
     logger.info("🔧 Initializing Google embeddings (text-embedding-004)")
-    _embeddings_instance = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",
-        google_api_key=settings.GOOGLE_API_KEY
-    )
-    return _embeddings_instance
+    try:
+        _embeddings_instance = GoogleGenerativeAIEmbeddings(
+            model="models/text-embedding-004",
+            google_api_key=settings.GOOGLE_API_KEY
+        )
+        return _embeddings_instance
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Embeddings: {e}")
+        return None
 
 
 def create_vector_db(texts: List[Document], output_path: str) -> Optional[FAISS]:
@@ -75,6 +92,10 @@ def create_vector_db(texts: List[Document], output_path: str) -> Optional[FAISS]
 
     logger.info(f"🧠 Generating embeddings for {len(texts)} chunks...")
     embeddings = get_embeddings()
+    if not embeddings:
+        logger.warning("❌ Embeddings not available (no API key). Skipping vector DB creation.")
+        return None
+
     
     # Ensure output directory exists
     os.makedirs(output_path, exist_ok=True)
@@ -207,6 +228,9 @@ def get_qa_chain(vector_db_path: str) -> Optional[ConversationalRetrievalChain]:
 
     # 1. Load Embeddings (cached)
     embeddings = get_embeddings()
+    if not embeddings:
+        logger.warning("⚠️ No embeddings available. Cannot build QA chain.")
+        return None
     
     # 2. Load Vector DB
     try:
@@ -237,6 +261,10 @@ def get_qa_chain(vector_db_path: str) -> Optional[ConversationalRetrievalChain]:
 
     # 4. Get LLM (cached)
     llm = get_llm()
+    if not llm:
+        logger.warning("⚠️ No LLM available. Cannot build QA chain.")
+        return None
+
 
     # 5. Define Prompts
     condense_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.

@@ -4,6 +4,9 @@ langchain-community==0.0.34
 langchain-google-genai==1.0.3
 faiss-cpu==1.8.0
 
+# Re-ranking (optional, for improved retrieval quality)
+sentence-transformers>=2.2.0
+
 # Code Processing
 gitpython==3.1.43
 tiktoken==0.6.0
@@ -45,3 +48,5 @@ httpx>=0.27.0
 black>=23.0.0
 mypy>=1.0.0
 ruff>=0.1.0
+safety>=2.0.0
+

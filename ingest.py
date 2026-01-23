@@ -88,13 +88,74 @@ def _process_repo_files(repo_path: str, repo_url: str) -> List[Document]:
     texts = splitter.split_documents(documents)
     logger.info(f"🧩 Created {len(texts)} code chunks.")
     
-    # 5. Clean Metadata & Redact Secrets
-    logger.info("🔒 Scanning for secrets...")
+    # Language detection mapping
+    EXTENSION_TO_LANGUAGE = {
+        ".py": "python",
+        ".js": "javascript",
+        ".ts": "typescript",
+        ".tsx": "typescript-react",
+        ".jsx": "javascript-react",
+        ".java": "java",
+        ".go": "go",
+        ".rs": "rust",
+        ".cpp": "cpp",
+        ".c": "c",
+        ".h": "c-header",
+        ".cs": "csharp",
+        ".rb": "ruby",
+        ".php": "php",
+        ".swift": "swift",
+        ".kt": "kotlin",
+        ".scala": "scala",
+        ".vue": "vue",
+        ".svelte": "svelte",
+    }
+    
+    # 5. Clean Metadata, Enhance with Language Info & Redact Secrets
+    logger.info("🔒 Scanning for secrets and enhancing metadata...")
     secrets_found = 0
-    for text in texts:
-        if "source" in text.metadata:
-            text.metadata["source"] = text.metadata["source"].replace(repo_path, "")
+    
+    for i, text in enumerate(texts):
+        source = text.metadata.get("source", "")
+        
+        # Clean source path
+        if source:
+            text.metadata["source"] = source.replace(repo_path, "").lstrip("/\\")
             text.metadata["repo_url"] = repo_url
+            
+            # Extract file extension and detect language
+            ext = os.path.splitext(source)[1].lower()
+            text.metadata["file_extension"] = ext
+            text.metadata["language"] = EXTENSION_TO_LANGUAGE.get(ext, "unknown")
+            
+            # Extract filename
+            text.metadata["filename"] = os.path.basename(source)
+        
+        # Add chunk index for tracking
+        text.metadata["chunk_index"] = i
+        
+        # Estimate line numbers (rough approximation based on newline count)
+        content = text.page_content
+        line_count = content.count("\n") + 1
+        text.metadata["estimated_lines"] = line_count
+        
+        # Try to extract function/class names from the chunk
+        if text.metadata.get("language") == "python":
+            # Extract Python function/class definitions
+            func_matches = re.findall(r'^(?:async\s+)?def\s+(\w+)', content, re.MULTILINE)
+            class_matches = re.findall(r'^class\s+(\w+)', content, re.MULTILINE)
+            if func_matches:
+                text.metadata["functions"] = func_matches[:5]  # Limit to 5
+            if class_matches:
+                text.metadata["classes"] = class_matches[:5]
+        elif text.metadata.get("language") in ("javascript", "typescript", "typescript-react", "javascript-react"):
+            # Extract JS/TS function definitions
+            func_matches = re.findall(r'(?:function|const|let|var)\s+(\w+)\s*[=\(]', content)
+            class_matches = re.findall(r'class\s+(\w+)', content)
+            if func_matches:
+                text.metadata["functions"] = func_matches[:5]
+            if class_matches:
+                text.metadata["classes"] = class_matches[:5]
         
         # Redact secrets
         original_content = text.page_content

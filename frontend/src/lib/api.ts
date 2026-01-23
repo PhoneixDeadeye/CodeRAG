@@ -240,9 +240,15 @@ export const addSessionMessage = async (sessionId: string, role: string, content
     return response.data;
 };
 
-export const exportSession = async (sessionId: string, format: 'json' | 'markdown' = 'json') => {
-    const response = await api.get(`/sessions/${sessionId}/export`, {
-        params: { format },
+export const exportSession = async (sessionId: string, format: 'json' | 'markdown' | 'html' = 'json') => {
+    // Use the new export router endpoints
+    const endpoint = format === 'json'
+        ? `/export/sessions/${sessionId}/json`
+        : format === 'html'
+            ? `/export/sessions/${sessionId}/html`
+            : `/export/sessions/${sessionId}/markdown`;
+
+    const response = await api.get(endpoint, {
         responseType: 'blob'
     });
 
@@ -253,7 +259,8 @@ export const exportSession = async (sessionId: string, format: 'json' | 'markdow
 
     // Extract filename or default
     const contentDisposition = response.headers['content-disposition'];
-    let filename = `chat_export_${sessionId}.${format === 'markdown' ? 'md' : 'json'}`;
+    const extensions = { json: 'json', markdown: 'md', html: 'html' };
+    let filename = `chat_export_${sessionId}.${extensions[format]}`;
     if (contentDisposition) {
         const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
         if (matches != null && matches[1]) {

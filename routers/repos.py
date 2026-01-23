@@ -281,3 +281,158 @@ async def delete_repo(repo_id: str, db: Session = Depends(get_db), user: User = 
     db.delete(repo)
     db.commit()
     return {"status": "success"}
+
+
+# ============================================
+# ZIP Upload Endpoint
+# ============================================
+
+from fastapi import UploadFile, File
+import zipfile
+import tempfile
+
+MAX_ZIP_SIZE = 100 * 1024 * 1024  # 100 MB limit
+
+@router.post("/repos/upload")
+async def upload_repo_zip(
+    file: UploadFile = File(...),
+    repo_name: Optional[str] = None,
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """
+    Upload a ZIP file containing a repository.
+    
+    The ZIP will be extracted and indexed just like a cloned repo.
+    Maximum file size: 100 MB.
+    """
+    # Validate file type
+    if not file.filename or not file.filename.endswith('.zip'):
+        raise HTTPException(
+            status_code=400, 
+            detail="Only ZIP files are accepted"
+        )
+    
+    # Check file size
+    file.file.seek(0, 2)  # Seek to end
+    size = file.file.tell()
+    file.file.seek(0)  # Reset to start
+    
+    if size > MAX_ZIP_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size is {MAX_ZIP_SIZE // (1024*1024)} MB"
+        )
+    
+    # Rate limit
+    check_ingest_limit(user.id)
+    
+    repo_id = str(uuid.uuid4())
+    raw_name = repo_name or file.filename.replace('.zip', '')
+    safe_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', raw_name)
+    
+    local_path = get_user_repo_path(user.id, repo_id)
+    vector_db_path = get_user_vector_path(user.id, repo_id)
+    
+    # Create repo record
+    new_repo = Repository(
+        id=repo_id,
+        user_id=user.id,
+        name=safe_name,
+        url=f"upload://{safe_name}",  # Mark as uploaded
+        local_path=local_path,
+        vector_db_path=vector_db_path,
+        status="extracting"
+    )
+    db.add(new_repo)
+    db.commit()
+    
+    try:
+        # Create temp file to save upload
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp:
+            tmp_path = tmp.name
+            content = await file.read()
+            tmp.write(content)
+        
+        # Extract ZIP
+        os.makedirs(local_path, exist_ok=True)
+        
+        with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
+            # Security: Check for path traversal
+            for member in zip_ref.namelist():
+                if member.startswith('/') or '..' in member:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid ZIP: contains unsafe paths"
+                    )
+            zip_ref.extractall(local_path)
+        
+        # Clean up temp file
+        os.unlink(tmp_path)
+        
+        # Update status and start indexing
+        new_repo.status = "indexing"
+        db.commit()
+        
+        # Process in background
+        def process_upload():
+            from database import SessionLocal
+            local_db = SessionLocal()
+            try:
+                repo = local_db.query(Repository).filter(Repository.id == repo_id).first()
+                if not repo:
+                    return
+                
+                # Process files
+                chunks = ingest.load_and_index_repo_from_path(local_path)
+                
+                if not chunks:
+                    repo.status = "failed"
+                    local_db.commit()
+                    return
+                
+                # Create vector DB
+                rag_engine.create_vector_db(chunks, vector_db_path)
+                
+                # Save stats
+                stats_path = os.path.join(os.path.dirname(vector_db_path), "stats.json")
+                with open(stats_path, "w") as f:
+                    json.dump({"chunk_count": len(chunks)}, f)
+                
+                repo.status = "ready"
+                local_db.commit()
+                logger.info(f"Successfully indexed uploaded repo {safe_name} with {len(chunks)} chunks")
+                
+            except Exception as e:
+                logger.error(f"Error processing uploaded ZIP: {e}")
+                repo = local_db.query(Repository).filter(Repository.id == repo_id).first()
+                if repo:
+                    repo.status = "failed"
+                    local_db.commit()
+            finally:
+                local_db.close()
+        
+        if background_tasks:
+            background_tasks.add_task(process_upload)
+        else:
+            # Fallback to sync processing
+            process_upload()
+        
+        return {
+            "status": "success",
+            "message": "ZIP uploaded and indexing started",
+            "repo_id": repo_id,
+            "repo_name": safe_name
+        }
+        
+    except zipfile.BadZipFile:
+        new_repo.status = "failed"
+        db.commit()
+        raise HTTPException(status_code=400, detail="Invalid or corrupted ZIP file")
+    except Exception as e:
+        new_repo.status = "failed"
+        db.commit()
+        logger.error(f"ZIP upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process ZIP: {str(e)}")
+

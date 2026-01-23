@@ -1,0 +1,16 @@
+{
+    "name": "coderag-e2e",
+    "version": "1.0.0",
+    "description": "E2E tests for CodeRAG",
+    "main": "index.js",
+    "scripts": {
+        "test": "playwright test"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@playwright/test": "^1.40.0",
+        "typescript": "^5.0.0"
+    }
+}

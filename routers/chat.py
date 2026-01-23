@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db, User, Repository, ChatSession, ChatMessage, UsageLog, Feedback
 from auth import get_optional_user, get_current_user, get_guest_session_id
 from pydantic import BaseModel, field_validator
-from typing import Optional, List, AsyncGenerator
+from typing import Optional, List, AsyncGenerator, Union
 from datetime import datetime, timezone
 import logging
 import json
@@ -19,7 +19,8 @@ logger = logging.getLogger("CodeRAG")
 # -- Models --
 class ChatRequest(BaseModel):
     query: str
-    repo_id: Optional[str] = None
+    repo_id: Optional[str] = None  # Single repo (backward compatible)
+    repo_ids: Optional[List[str]] = None  # Multiple repos for multi-repo chat
     session_id: Optional[str] = None
     
     @field_validator('query')
@@ -30,23 +31,90 @@ class ChatRequest(BaseModel):
         if len(v) > 5000:
             raise ValueError('Query too long (max 5000 characters)')
         return v.strip()
+    
+    def get_repo_ids(self) -> List[str]:
+        """Get list of repo IDs, handling both single and multi-repo cases."""
+        if self.repo_ids:
+            return self.repo_ids
+        if self.repo_id:
+            return [self.repo_id]
+        return []
 
 class SourceDocument(BaseModel):
     page_content: str
     metadata: dict
     github_link: Optional[str] = None
+    repo_name: Optional[str] = None  # Added for multi-repo context
 
 class ChatResponse(BaseModel):
     answer: str
     source_documents: List[SourceDocument]
     session_id: Optional[str] = None  # None for guest mode
     is_guest: bool = False
+    repos_queried: Optional[List[str]] = None  # List of repo names queried
 
 class FeedbackRequest(BaseModel):
     question: str
     answer: str
     rating: int
     comment: Optional[str] = None
+
+
+async def query_multiple_repos(
+    repos: List[Repository],
+    query: str
+) -> dict:
+    """
+    Query multiple repositories and aggregate results.
+    
+    Uses each repo's QA chain and combines the source documents,
+    then generates a unified answer.
+    """
+    all_sources = []
+    repo_answers = []
+    
+    for repo in repos:
+        try:
+            chain = rag_engine.get_cached_qa_chain(repo.vector_db_path)
+            if not chain:
+                logger.warning(f"Could not load chain for repo {repo.name}")
+                continue
+            
+            response = await rag_engine.invoke_chain_with_retry(chain, {"question": query})
+            
+            # Collect sources with repo context
+            if "source_documents" in response:
+                for doc in response["source_documents"]:
+                    doc.metadata["repo_name"] = repo.name
+                    doc.metadata["repo_id"] = repo.id
+                    all_sources.append(doc)
+            
+            if response.get("answer"):
+                repo_answers.append({
+                    "repo": repo.name,
+                    "answer": response["answer"]
+                })
+                
+        except Exception as e:
+            logger.error(f"Error querying repo {repo.name}: {e}")
+    
+    # Generate unified answer if multiple repos
+    if len(repo_answers) > 1:
+        # Combine answers with context
+        combined = "Based on analysis across multiple repositories:\n\n"
+        for ra in repo_answers:
+            combined += f"**From {ra['repo']}:**\n{ra['answer']}\n\n"
+        final_answer = combined.strip()
+    elif repo_answers:
+        final_answer = repo_answers[0]["answer"]
+    else:
+        final_answer = "No relevant information found in the selected repositories."
+    
+    return {
+        "answer": final_answer,
+        "source_documents": all_sources,
+        "repos_queried": [r.name for r in repos]
+    }
 
 
 # -- Endpoints --
