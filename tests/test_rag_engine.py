@@ -1,68 +1,101 @@
-
 # tests/test_rag_engine.py
 import pytest
 from unittest.mock import patch, MagicMock
-from langchain.schema import Document
-import rag_engine
-import os
+from langchain_core.documents import Document
+import app.services.rag_engine as rag_engine
+
 
 @pytest.fixture
 def mock_embeddings():
-    with patch('rag_engine.GoogleGenerativeAIEmbeddings') as mock:
+    with patch("app.services.rag_engine.GoogleGenerativeAIEmbeddings") as mock:
         mock_instance = MagicMock()
         mock_instance.embed_documents.return_value = [[0.1] * 768]
         mock_instance.embed_query.return_value = [0.1] * 768
         mock.return_value = mock_instance
         yield mock_instance
 
-def test_create_vector_db(mock_embeddings, tmp_path):
-    """Test vector DB creation."""
+
+@pytest.fixture
+def mock_qdrant_client():
+    with patch("app.services.rag_engine.QdrantClient") as mock:
+        mock_instance = MagicMock()
+        # Mock collection check to return True so we don't try to create it and fail logic
+        mock_instance.collection_exists.return_value = True
+        mock.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def mock_qdrant_store():
+    with patch("app.services.rag_engine.QdrantVectorStore") as mock:
+        mock_instance = MagicMock()
+        mock.return_value = mock_instance
+        yield mock
+
+
+def test_create_vector_db(mock_embeddings, mock_qdrant_client, mock_qdrant_store):
+    """Test vector DB creation with Qdrant."""
     chunks = [
         Document(page_content="def hello(): pass", metadata={"source": "test.py"}),
-        Document(page_content="class Foo: pass", metadata={"source": "test.py"})
+        Document(page_content="class Foo: pass", metadata={"source": "test.py"}),
     ]
-    
-    vector_path = str(tmp_path / "vectors")
-    
-    with patch('rag_engine.FAISS') as mock_faiss:
-        mock_instance = MagicMock()
-        mock_faiss.from_documents.return_value = mock_instance
-        
-        rag_engine.create_vector_db(chunks, vector_path)
-        
-        # Verify FAISS was initialized
-        mock_faiss.from_documents.assert_called()
-        # Verify save was called
-        mock_instance.save_local.assert_called_with(vector_path)
 
-def test_get_qa_chain_no_db():
-    """Test getting QA chain when DB does not exist."""
-    chain = rag_engine.get_qa_chain("non_existent_path")
-    assert chain is None
+    collection_name = "test_collection"
 
-@patch('rag_engine.ConversationalRetrievalChain')
-@patch('rag_engine.FAISS')
-@patch('rag_engine.BM25Retriever')
-@patch('rag_engine.GoogleGenerativeAIEmbeddings')
-@patch('rag_engine.GoogleGenerativeAI')
-def test_get_qa_chain_success(mock_llm, mock_embeddings, mock_bm25, mock_faiss, mock_crc, tmp_path):
+    # Needs to mock get_qdrant_client in the module properly if it's not using the class directly
+    with patch(
+        "app.services.rag_engine.get_qdrant_client", return_value=mock_qdrant_client
+    ):
+        # Also need to mock get_embeddings to return our mock
+        with patch(
+            "app.services.rag_engine.get_embeddings", return_value=mock_embeddings
+        ):
+            rag_engine.create_vector_db(chunks, collection_name)
+
+    # Verify QdrantVectorStore was initialized
+    mock_qdrant_store.assert_called()
+
+    # Verify add_documents was called on the instance
+    mock_qdrant_store.return_value.add_documents.assert_called()
+
+
+def test_get_qa_chain_no_db(mock_embeddings, mock_qdrant_client):
+    """Test getting QA chain when collection does not exist."""
+    # Mock collection_exists to False
+    mock_qdrant_client.collection_exists.return_value = False
+
+    with patch(
+        "app.services.rag_engine.get_qdrant_client", return_value=mock_qdrant_client
+    ):
+        with patch(
+            "app.services.rag_engine.get_embeddings", return_value=mock_embeddings
+        ):
+            chain = rag_engine.get_qa_chain("non_existent_collection")
+            assert chain is None
+
+
+def test_get_qa_chain_success(mock_embeddings, mock_qdrant_client, mock_qdrant_store):
     """Test successful QA chain creation."""
-    # Create valid paths
-    vector_path = str(tmp_path / "vectors")
-    os.makedirs(vector_path, exist_ok=True)
-    with open(os.path.join(vector_path, "texts.pkl"), 'wb') as f:
-        import pickle
-        pickle.dump([], f)
-        
-    # Mock FAISS
-    mock_db = MagicMock()
-    mock_faiss.load_local.return_value = mock_db
-    
-    # Mock LLM
-    mock_llm.return_value = MagicMock()
-    
-    # Mock Chain
-    mock_crc.from_llm.return_value = MagicMock()
-    
-    chain = rag_engine.get_qa_chain(vector_path)
-    assert chain is not None
+    collection_name = "valid_collection"
+
+    # Mock mocks
+    mock_qdrant_client.collection_exists.return_value = True
+
+    mock_retriever = MagicMock()
+    mock_qdrant_store.return_value.as_retriever.return_value = mock_retriever
+
+    with patch(
+        "app.services.rag_engine.get_qdrant_client", return_value=mock_qdrant_client
+    ):
+        with patch(
+            "app.services.rag_engine.get_embeddings", return_value=mock_embeddings
+        ):
+            with patch("app.services.rag_engine.GoogleGenerativeAI"):
+                with patch(
+                    "app.services.rag_engine.ConversationalRetrievalChain"
+                ) as mock_crc:
+                    mock_crc.from_llm.return_value = MagicMock()
+
+                    chain = rag_engine.get_qa_chain(collection_name)
+                    assert chain is not None
+                    mock_crc.from_llm.assert_called()

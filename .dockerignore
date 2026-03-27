@@ -1,0 +1,48 @@
+# Version control
+.git
+.gitignore
+
+# Environment
+.env
+.env.local
+.env.example
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data & artifacts (should be mounted as volumes, not baked in)
+data/
+vectorstore/
+*.faiss
+*.pkl
+*.db
+*.sqlite
+*.sqlite3
+coderag.db
+
+# Logs
+logs/
+*.log
+
+# Frontend (has its own Dockerfile)
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# IDE
+.vscode/
+.idea/
+
+# Docs & misc
+*.md
+!README.md
+playwright-report/
+test-results/
+node_modules/

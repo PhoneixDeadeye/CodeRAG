@@ -88,7 +88,7 @@ describe('FileExplorer', () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByText('No files indexed yet')).toBeInTheDocument();
+            expect(screen.getByText('No files indexed')).toBeInTheDocument();
         });
     });
 

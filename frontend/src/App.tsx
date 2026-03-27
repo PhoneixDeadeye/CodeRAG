@@ -1,72 +1,67 @@
-import { useState, useCallback, useEffect, Suspense, lazy } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { ChatInterface } from './components/ChatInterface';
-import { FileExplorer } from './components/FileExplorer';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { KeyboardShortcuts, useKeyboardShortcutsModal } from './components/KeyboardShortcuts';
-import { SettingsSkeleton, SearchSkeleton } from './components/Skeleton';
+import { KeyboardShortcuts } from './components/KeyboardShortcuts';
+import { useKeyboardShortcutsModal } from './hooks/useKeyboardShortcutsModal';
+import { WelcomeModal, useWelcomeModal } from './components/WelcomeModal';
+import { Menu } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext';
+import { useToast } from './components/Toast';
+import { getFileContent } from './lib/api';
+import type { SourceDocument } from './lib/api';
+import { logger } from './lib/logger';
 
-// Lazy load heavy components
-const CodeViewer = lazy(() => import('./components/CodeViewer').then(module => ({ default: module.CodeViewer })));
-const DependencyGraph = lazy(() => import('./components/DependencyGraph').then(module => ({ default: module.DependencyGraph })));
-const GlobalSearch = lazy(() => import('./components/GlobalSearch').then(module => ({ default: module.GlobalSearch })));
-const RepositoryIngestion = lazy(() => import('./components/RepositoryIngestion').then(module => ({ default: module.RepositoryIngestion })));
-const DiffViewer = lazy(() => import('./components/DiffViewer').then(module => ({ default: module.DiffViewer })));
-const GlobalCodeSearch = lazy(() => import('./components/GlobalCodeSearch').then(module => ({ default: module.GlobalCodeSearch })));
-const VoiceSettings = lazy(() => import('./components/VoiceSettings').then(module => ({ default: module.VoiceSettings })));
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import type { SourceDocument, FileContentResponse } from './lib/api';
-import { getFileContent, getConfig, listRepos } from './lib/api';
-
-import { ToastProvider } from './contexts/ToastContext';
-import { useToast } from './contexts/ToastContextCore';
+import { AppProviders } from './components/layout/AppProviders';
+import { MainView } from './components/layout/MainView';
+import { useAppNavigation } from './hooks/useAppNavigation';
+import { useWorkspaceState } from './hooks/useWorkspaceState';
+import ThreeBackground from './components/ThreeBackground';
 
 function AppContent() {
   const { isLoading } = useAuth();
-  const { showToast } = useToast();
+  const { addToast } = useToast();
   const { isOpen: showShortcuts, close: closeShortcuts } = useKeyboardShortcutsModal();
+  const { showWelcome, closeWelcome } = useWelcomeModal();
 
-  const [activeFile, setActiveFile] = useState<FileContentResponse | null>(null);
-  const [highlightLines, setHighlightLines] = useState<number[]>([]);
-  const [currentSession, setCurrentSession] = useState<string | null>(null);
-  const [currentSessionName, setCurrentSessionName] = useState('New Chat');
-  const [showSearch, setShowSearch] = useState(false);
-  const [showDependencyGraph, setShowDependencyGraph] = useState(false);
-  const [dependencyFilePath, setDependencyFilePath] = useState<string>('');
-  const [multiSelectMode, setMultiSelectMode] = useState(false);
-  const [contextFiles, setContextFiles] = useState<string[]>([]);
-  const [showFilesPanel, setShowFilesPanel] = useState(false);
-  const [currentRepo, setCurrentRepo] = useState('No repository');
-  const [activeRepoId, setActiveRepoId] = useState<string | undefined>(undefined);
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
-  const [currentView, setCurrentView] = useState<'chat' | 'repos' | 'files' | 'diff' | 'graph' | 'search' | 'voice'>('chat');
-  const [diffData, setDiffData] = useState<{ filePath: string; oldContent: string; newContent: string } | null>(null);
+  // Navigation State
+  const {
+    sidebarOpen,
+    setSidebarOpen,
+    currentView,
+    setCurrentView,
+    navigateTo,
+    showSearch,
+    setShowSearch,
+    showFilesPanel,
+    setShowFilesPanel,
+    showDependencyGraph,
+    setShowDependencyGraph,
+    dependencyFilePath,
+    setDependencyFilePath,
+    diffData,
+    openDiff,
+    closeDiff
+  } = useAppNavigation();
 
-  // Initialization - works for both guests and authenticated users
-  useEffect(() => {
-    const initApp = async () => {
-      try {
-        const config = await getConfig();
-        if (config.current_repo) {
-          const repos = await listRepos();
-          if (repos.active) {
-            setCurrentRepo(repos.active.name);
-            setActiveRepoId(repos.active.id);
-          } else if (config.current_repo.startsWith("local://")) {
-            setCurrentRepo(config.current_repo.replace("local://", ""));
-          } else {
-            setCurrentRepo(config.current_repo.split('/').pop() || config.current_repo);
-          }
-        }
-      } catch (err) {
-        // Silent fail - app can still function without this
-        if (import.meta.env.MODE === 'development') {
-          console.error("Failed to initialize app:", err);
-        }
-      }
-    };
-    initApp();
-  }, []);
+  // Workspace State (Files, Sessions, Repos)
+  const {
+    activeFile,
+    setActiveFile,
+    highlightLines,
+    setHighlightLines,
+    currentSession,
+    setCurrentSession,
+    currentSessionName,
+    setCurrentSessionName,
+    multiSelectMode,
+    setMultiSelectMode,
+    contextFiles,
+    setContextFiles,
+    currentRepo,
+    activeRepoId,
+    setActiveRepoId,
+    handleRepoSelect,
+    handleMultiSelect
+  } = useWorkspaceState();
 
   const handleSourceClick = useCallback((source: SourceDocument, lines?: number[]) => {
     getFileContent(source.source, activeRepoId).then(file => {
@@ -75,12 +70,10 @@ function AppContent() {
       setShowDependencyGraph(false);
       setShowFilesPanel(true);
     }).catch(err => {
-      if (import.meta.env.MODE === 'development') {
-        console.error('Failed to load file:', err);
-      }
-      showToast('Failed to load file', 'error');
+      logger.error('Failed to load file:', err);
+      addToast('Failed to load file', 'error');
     });
-  }, [showToast, activeRepoId]);
+  }, [addToast, activeRepoId, setShowDependencyGraph, setShowFilesPanel, setActiveFile, setHighlightLines]);
 
   const handleExplainFile = useCallback((filePath: string) => {
     window.dispatchEvent(new CustomEvent('explainFile', { detail: { filePath } }));
@@ -91,7 +84,7 @@ function AppContent() {
     setCurrentSessionName('New Chat');
     window.dispatchEvent(new CustomEvent('newChat'));
     if (window.innerWidth < 768) setSidebarOpen(false);
-  }, []);
+  }, [setSidebarOpen, setCurrentSession, setCurrentSessionName]);
 
   const handleExplainCode = useCallback((code: string, context: string) => {
     const prompt = `Explain this code from ${context}:\n\n\`\`\`\n${code}\n\`\`\``;
@@ -112,7 +105,7 @@ function AppContent() {
     setDependencyFilePath(filePath);
     setShowDependencyGraph(true);
     setShowFilesPanel(true);
-  }, []);
+  }, [setDependencyFilePath, setShowDependencyGraph, setShowFilesPanel]);
 
   const handleSearchResult = useCallback((filePath: string, lineNumber: number) => {
     getFileContent(filePath, activeRepoId).then(file => {
@@ -121,21 +114,14 @@ function AppContent() {
       setShowDependencyGraph(false);
       setShowFilesPanel(true);
       setShowSearch(false);
+      setCurrentView('chat');
     }).catch(err => {
-      console.error(err);
-      showToast('Failed to open file from search results', 'error');
+      logger.error(err);
+      addToast('Failed to open file from search results', 'error');
     });
-  }, [activeRepoId, showToast]);
+  }, [activeRepoId, addToast, setShowDependencyGraph, setShowFilesPanel, setShowSearch, setCurrentView, setActiveFile, setHighlightLines]);
 
-  const handleRepoSelect = useCallback((repoId: string) => {
-    setActiveRepoId(repoId);
-  }, []);
-
-  const handleMultiSelect = useCallback((paths: string[]) => {
-    setContextFiles(paths);
-  }, []);
-
-  // Global keyboard shortcuts
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -157,40 +143,36 @@ function AppContent() {
       }
       if (e.key === 'Escape') {
         setShowSearch(false);
-        setShowFilesPanel(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNewChat]);
+  }, [handleNewChat, setShowSearch, setSidebarOpen]);
 
-  // Handle responsive sidebar behavior
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setSidebarOpen(true);
-      } else {
-        setSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
+  // Loading state
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen bg-[#0E1117] text-white">Loading...</div>;
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-transparent text-primary font-mono gap-4 relative z-0">
+          <ThreeBackground />
+          <div className="relative z-10 flex flex-col items-center justify-center">
+             <div className="relative w-24 h-24">
+                <div className="absolute inset-0 border-4 border-slate-500/20 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-transparent border-t-indigo-500 animate-spin rounded-full"></div>
+                <div className="absolute inset-0 flex flex-col justify-center items-center">
+                    <span className="text-xl font-bold animate-pulse text-indigo-400">Loading</span>
+                </div>
+             </div>
+             <div className="mt-4 flex flex-col items-center gap-1">
+                <span className="text-lg font-bold tracking-widest text-indigo-300">System_Initializing</span>
+             </div>
+    );
   }
-
-  // REMOVED: Authentication redirect - App now works for guests
-  // Login is triggered via AuthModal in Sidebar when needed
 
   const handleGraphRequest = () => {
     if (!activeFile) {
-      showToast("Please open a file first to view its dependency graph", "info");
+      addToast("Please open a file first to view its dependency graph", "info");
       setShowFilesPanel(true);
-      // If we weren't already in files view, switch to it
       setCurrentView('files');
       return;
     }
@@ -200,198 +182,90 @@ function AppContent() {
   };
 
   return (
-    <div className="bg-background-dark font-display h-screen flex overflow-hidden text-white selection:bg-primary selection:text-white">
+      <div className="bg-transparent font-display h-screen flex overflow-hidden text-white selection:bg-indigo-500 selection:text-white relative z-0">
+        <ThreeBackground />
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onIngestComplete={() => {
-          window.dispatchEvent(new CustomEvent('refreshFileTree'));
-          setCurrentRepo('Repository updated');
-          showToast('Repository ingested successfully', 'success');
-        }}
         onRepoSelect={handleRepoSelect}
         onSessionSelect={(session) => {
           setCurrentSession(session?.id || null);
           setCurrentSessionName(session?.name || 'New Chat');
-          setCurrentView('chat');
+          navigateTo('chat');
         }}
         currentSessionId={currentSession}
         onShowSearch={() => setShowSearch(true)}
         onShowFiles={() => {
           setShowFilesPanel(true);
-          setCurrentView('files');
+          navigateTo('files');
         }}
-        onShowRepos={() => setCurrentView('repos')}
+        onShowRepos={() => navigateTo('repos')}
         onShowGraph={handleGraphRequest}
-        onShowCodeSearch={() => setCurrentView('search')}
-        onShowVoice={() => setCurrentView('voice')}
+        onShowCodeSearch={() => navigateTo('search')}
+        onShowVoice={() => navigateTo('voice')}
+        onShowAdmin={() => navigateTo('admin')}
+        onShowSettings={() => navigateTo('settings')}
       />
 
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="md:hidden fixed top-4 left-4 z-30 p-2 bg-sidebar-dark/90 backdrop-blur border border-border-dark rounded-lg text-white shadow-lg"
+        className="md:hidden fixed top-4 left-4 z-30 p-2 bg-black border border-border-default text-primary shadow-[4px_4px_0px_0px_white] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all rounded-none"
       >
-        <span className="material-symbols-outlined">
-          menu
-        </span>
+        <Menu className="w-5 h-5" />
       </button>
 
-      {currentView === 'repos' ? (
-        <Suspense fallback={<SettingsSkeleton />}>
-          <RepositoryIngestion />
-        </Suspense>
-      ) : currentView === 'diff' && diffData ? (
-        <Suspense fallback={<div className="flex items-center justify-center p-12 text-gray-500">Loading Diff Viewer...</div>}>
-          <DiffViewer
-            filePath={diffData.filePath}
-            oldContent={diffData.oldContent}
-            newContent={diffData.newContent}
-            onClose={() => {
-              setCurrentView('chat');
-              setDiffData(null);
-            }}
-            onExplainDiff={(old, newC, path) => {
-              const prompt = `Explain the differences in ${path}:\n\n\`\`\`\n${old}\n\`\`\`\n\nNEW:\n\`\`\`\n${newC}\n\`\`\``;
-              window.dispatchEvent(new CustomEvent('explainFile', { detail: { filePath: prompt, isCode: true } }));
-            }}
-          />
-        </Suspense>
-      ) : currentView === 'graph' ? (
-        <div className="flex-1 flex items-center justify-center text-gray-500">
-          {/* Fallback state if they somehow got here without a file */}
-          <p>Select a file from the file explorer to view its dependency graph.</p>
-        </div>
-      ) : currentView === 'search' ? (
-        <Suspense fallback={<SearchSkeleton />}>
-          <GlobalCodeSearch
-            onResultClick={(filePath, lineNumber) => {
-              getFileContent(filePath).then(file => {
-                setActiveFile(file);
-                setHighlightLines([lineNumber]);
-                setShowFilesPanel(true);
-                setCurrentView('chat');
-              }).catch(console.error);
-            }}
-            onClose={() => setCurrentView('chat')}
-          />
-        </Suspense>
-      ) : currentView === 'voice' ? (
-        <Suspense fallback={<SettingsSkeleton />}>
-          <VoiceSettings
-            onClose={() => setCurrentView('chat')}
-            onSave={() => {
-              showToast('Voice settings saved', 'success');
-              setCurrentView('chat');
-            }}
-          />
-        </Suspense>
-      ) : (
-        <>
-          <ChatInterface
-            onSourceClick={handleSourceClick}
-            sessionId={currentSession}
-            contextFiles={contextFiles}
-            sessionName={currentSessionName}
-            repoName={currentRepo}
-            repoId={activeRepoId}
-            onNewChat={handleNewChat}
-          />
+      <MainView
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        diffData={diffData}
+        setDiffData={(data) => {
+          if (data) openDiff(data);
+          else closeDiff();
+        }}
+        showSearch={showSearch}
+        setShowSearch={setShowSearch}
+        showDependencyGraph={showDependencyGraph}
+        setShowDependencyGraph={setShowDependencyGraph}
+        dependencyFilePath={dependencyFilePath}
+        showFilesPanel={showFilesPanel}
+        setShowFilesPanel={setShowFilesPanel}
+        activeFile={activeFile}
+        setActiveFile={setActiveFile}
+        highlightLines={highlightLines}
+        setHighlightLines={setHighlightLines}
+        multiSelectMode={multiSelectMode}
+        setMultiSelectMode={setMultiSelectMode}
+        contextFiles={contextFiles}
+        setContextFiles={setContextFiles}
+        activeRepoId={activeRepoId}
+        setActiveRepoId={setActiveRepoId}
+        currentSession={currentSession}
+        currentSessionName={currentSessionName}
+        currentRepo={currentRepo}
+        onSourceClick={handleSourceClick}
+        onNewChat={handleNewChat}
+        onExplainFile={handleExplainFile}
+        onExplainCode={handleExplainCode}
+        onGenerateTests={handleGenerateTests}
+        onGenerateDocs={handleGenerateDocs}
+        onShowDependencies={handleShowDependencies}
+        handleSearchResult={handleSearchResult}
+        handleMultiSelect={handleMultiSelect}
+        getFileContent={getFileContent}
+        addToast={addToast}
+      />
 
-          {showFilesPanel && (
-            <div className={`w-full md:w-[500px] shrink-0 border-l border-border-dark flex flex-col bg-sidebar-dark animate-fade-in absolute md:relative z-20 h-full right-0 shadow-2xl md:shadow-none`}>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border-dark">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-text-secondary">folder_open</span>
-                  <span className="text-sm font-medium">Files & Code</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setMultiSelectMode(!multiSelectMode)}
-                    className={`p-1.5 rounded transition-all ${multiSelectMode ? 'bg-emerald-600/20 text-emerald-400' : 'hover:bg-border-dark text-text-secondary'}`}
-                    title={multiSelectMode ? 'Exit multi-select' : 'Multi-select for context'}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">layers</span>
-                  </button>
-                  <button
-                    onClick={() => setShowFilesPanel(false)}
-                    className="p-1.5 hover:bg-border-dark rounded text-text-secondary hover:text-white transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="h-1/3 border-b border-border-dark overflow-hidden">
-                <FileExplorer
-                  onFileSelect={(file) => {
-                    setActiveFile(file);
-                    setHighlightLines([]);
-                    setShowDependencyGraph(false);
-                  }}
-                  onExplainFile={handleExplainFile}
-                  multiSelectMode={multiSelectMode}
-                  onMultiSelect={handleMultiSelect}
-                  repoId={activeRepoId}
-                />
-              </div>
-
-              <div className="flex-1 overflow-hidden">
-                <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-500">Loading...</div>}>
-                  {showDependencyGraph ? (
-                    <DependencyGraph
-                      filePath={dependencyFilePath}
-                      onClose={() => setShowDependencyGraph(false)}
-                      onFileClick={(path) => {
-                        getFileContent(path).then(file => {
-                          setActiveFile(file);
-                          setHighlightLines([]);
-                          setShowDependencyGraph(false);
-                        }).catch(console.error);
-                      }}
-                    />
-                  ) : (
-                    <CodeViewer
-                      file={activeFile}
-                      highlightLines={highlightLines}
-                      onClose={() => {
-                        setActiveFile(null);
-                        setHighlightLines([]);
-                      }}
-                      onExplainCode={handleExplainCode}
-                      onGenerateTests={handleGenerateTests}
-                      onGenerateDocs={handleGenerateDocs}
-                      onShowDependencies={handleShowDependencies}
-                    />
-                  )}
-                </Suspense>
-              </div>
-            </div>
-          )}
-
-          <Suspense fallback={null}>
-            <GlobalSearch
-              isOpen={showSearch}
-              onClose={() => setShowSearch(false)}
-              onResultClick={handleSearchResult}
-            />
-          </Suspense>
-        </>
-      )}
-      {/* Keyboard Shortcuts Help Modal */}
       <KeyboardShortcuts isOpen={showShortcuts} onClose={closeShortcuts} />
+      {showWelcome && <WelcomeModal onClose={closeWelcome} />}
     </div>
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <ErrorBoundary name="App Root">
-          <AppContent />
-        </ErrorBoundary>
-      </ToastProvider>
-    </AuthProvider>
+    <AppProviders>
+      <AppContent />
+    </AppProviders>
   );
 }
 

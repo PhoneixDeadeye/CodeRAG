@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useToast } from '../contexts/ToastContextCore';
+import { useToast } from './Toast';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -17,7 +17,7 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, defaultTab = 'login', message }: AuthModalProps) {
     const { login, register } = useAuth();
-    const { showToast } = useToast();
+    const { addToast } = useToast();
 
     const [activeTab, setActiveTab] = useState<'login' | 'register'>(defaultTab);
     const [email, setEmail] = useState('');
@@ -44,10 +44,10 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login', message }: Au
                     return;
                 }
                 await register(email, password);
-                showToast('Account created! Your session data has been saved.', 'success');
+                addToast('Account created! Your session data has been saved.', 'success');
             } else {
                 await login(email, password);
-                showToast('Welcome back! Your session data has been saved.', 'success');
+                addToast('Welcome back! Your session data has been saved.', 'success');
             }
             onClose();
         } catch (err: unknown) {
@@ -69,9 +69,9 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login', message }: Au
             />
 
             {/* Modal */}
-            <div className="auth-modal">
+            <div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
                 <div className="auth-modal-header">
-                    <h2>{activeTab === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
+                    <h2 id="modal-title">{activeTab === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
                     <button className="auth-modal-close" onClick={onClose}>
                         <span className="material-symbols-rounded">close</span>
                     </button>
@@ -300,8 +300,8 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login', message }: Au
                 }
 
                 .auth-modal-tabs button.active {
-                    background: var(--accent-purple, #cba6f7);
-                    border-color: var(--accent-purple, #cba6f7);
+                    background: var(--accent-teal, #4fd1c5);
+                    border-color: var(--accent-teal, #4fd1c5);
                     color: var(--surface-primary, #1e1e2e);
                 }
 
@@ -343,7 +343,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login', message }: Au
 
                 .auth-modal-field input:focus {
                     outline: none;
-                    border-color: var(--accent-purple, #cba6f7);
+                    border-color: var(--accent-teal, #4fd1c5);
                 }
 
                 .auth-modal-field input::placeholder {
@@ -353,7 +353,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login', message }: Au
                 .auth-modal-submit {
                     width: 100%;
                     padding: 14px;
-                    background: var(--accent-purple, #cba6f7);
+                    background: var(--accent-teal, #4fd1c5);
                     border: none;
                     border-radius: 8px;
                     color: var(--surface-primary, #1e1e2e);
@@ -365,7 +365,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login', message }: Au
                 }
 
                 .auth-modal-submit:hover:not(:disabled) {
-                    background: var(--accent-purple-hover, #b4befe);
+                    background: var(--accent-teal-hover, #38b2ac);
                     transform: translateY(-1px);
                 }
 

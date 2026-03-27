@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { globalSearch, type SearchResult } from '../lib/api';
+import { logger } from '../lib/logger';
 
 interface GlobalCodeSearchProps {
     onResultClick?: (filePath: string, lineNumber: number) => void;
@@ -35,7 +36,7 @@ const getLanguageColor = (lang: string) => {
         case 'javascript':
             return 'blue';
         case 'python':
-            return 'purple';
+            return 'teal';
         case 'rust':
             return 'orange';
         default:
@@ -79,7 +80,7 @@ export const GlobalCodeSearch: React.FC<GlobalCodeSearchProps> = ({
                 setSearchTime((performance.now() - startTime) / 1000);
                 setHasSearched(true);
             } catch (err: unknown) {
-                console.error('Search failed:', err);
+                logger.error('Search failed:', err);
                 const error = err as { response?: { data?: { detail?: string } } };
                 setError(error.response?.data?.detail || 'Search failed. Please try again.');
                 setResults([]);
@@ -425,7 +426,7 @@ export const GlobalCodeSearch: React.FC<GlobalCodeSearchProps> = ({
                                                     e.stopPropagation();
                                                     navigator.clipboard.writeText(result.file_path).then(() => {
                                                         // Fallback notification or just assume success if no toast context
-                                                    }).catch(err => console.error('Copy failed', err));
+                                                    }).catch(err => logger.error('Copy failed', err));
                                                 }}
                                             >
                                                 <span className="material-symbols-outlined text-[20px]">content_copy</span>

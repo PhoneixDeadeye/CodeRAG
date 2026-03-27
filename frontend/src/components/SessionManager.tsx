@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { listSessions, deleteSession, type ChatSession } from '../lib/api';
-import { useToast } from '../contexts/ToastContextCore';
+import { useToast } from './Toast';
 import { useAuth } from '../contexts/AuthContext';
+import { logger } from '../lib/logger';
 
 interface SessionManagerProps {
     currentSessionId: string | null;
@@ -16,7 +17,7 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [loading, setLoading] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const { showToast } = useToast();
+    const { addToast } = useToast();
     const { isAuthenticated, isGuest } = useAuth();
 
     const loadSessions = useCallback(async () => {
@@ -31,17 +32,15 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
             const data = await listSessions();
             setSessions(data.sessions);
         } catch (err) {
-            if (import.meta.env.MODE === 'development') {
-                console.error('Failed to load sessions:', err);
-            }
+            logger.error('Failed to load sessions:', err);
             // Don't show toast for auth errors in guest mode
             if (!isGuest) {
-                showToast('Failed to load sessions', 'error');
+                addToast('Failed to load sessions', 'error');
             }
         } finally {
             setLoading(false);
         }
-    }, [showToast, isAuthenticated, isGuest]);
+    }, [addToast, isAuthenticated, isGuest]);
 
     useEffect(() => {
         loadSessions();
@@ -59,16 +58,14 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
 
         try {
             await deleteSession(sessionId);
-            showToast('Session deleted', 'success');
+            addToast('Session deleted', 'success');
             if (currentSessionId === sessionId) {
                 onSessionSelect(null);
             }
             await loadSessions();
         } catch (err) {
-            if (import.meta.env.MODE === 'development') {
-                console.error('Failed to delete session:', err);
-            }
-            showToast('Failed to delete session', 'error');
+            logger.error('Failed to delete session:', err);
+            addToast('Failed to delete session', 'error');
         } finally {
             setDeleteConfirmId(null);
         }

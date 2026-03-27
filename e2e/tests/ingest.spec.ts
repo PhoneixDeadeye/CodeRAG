@@ -67,14 +67,15 @@ test.describe('Repository Ingestion', () => {
         await urlInput.fill('not-a-valid-url');
 
         // Try to submit
-        const submitButton = page.getByRole('button', { name: /ingest|add|submit/i });
+        const submitButton = page.getByRole('button', { name: /start ingestion/i });
         if (await submitButton.isVisible()) {
             await submitButton.click();
 
             // Should show validation error
             // Error might be a toast or text
-            const errorMessage = page.locator('text=/invalid|error|format|valid url|input should be/i').first();
-            // await expect(errorMessage).toBeVisible(); // Flaky without exact text
+            // Check for red error text which indicates failure
+            const errorElement = page.locator('.text-red-400').first();
+            await expect(errorElement).toBeVisible();
 
         }
     });

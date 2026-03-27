@@ -1,18 +1,6 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-// Extend global types for test environment
-declare global {
-    // eslint-disable-next-line no-var
-    var ResizeObserver: typeof ResizeObserver;
-    // eslint-disable-next-line no-var
-    var matchMedia: typeof window.matchMedia;
-    // eslint-disable-next-line no-var
-    var SpeechRecognition: new () => SpeechRecognition;
-    // eslint-disable-next-line no-var
-    var webkitSpeechRecognition: new () => SpeechRecognition;
-}
-
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -27,6 +15,8 @@ globalThis.ResizeObserver = class ResizeObserver {
 globalThis.matchMedia = globalThis.matchMedia || function () {
     return {
         matches: false,
+        media: '',
+        onchange: null,
         addListener: function () { },
         removeListener: function () { },
         addEventListener: function () { },
@@ -43,8 +33,10 @@ class MockSpeechRecognition {
     addEventListener() { }
     removeEventListener() { }
 }
-globalThis.SpeechRecognition = MockSpeechRecognition as unknown as new () => SpeechRecognition;
-globalThis.webkitSpeechRecognition = globalThis.SpeechRecognition;
+
+// Use bracket notation for dynamic global assignment to avoid TS index signature errors
+(globalThis as Record<string, unknown>)['SpeechRecognition'] = MockSpeechRecognition;
+(globalThis as Record<string, unknown>)['webkitSpeechRecognition'] = MockSpeechRecognition;
 
 // Mock Clipboard
 Object.assign(navigator, {

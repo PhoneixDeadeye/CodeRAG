@@ -76,3 +76,16 @@ playwright-report/
 test-results/
 node_modules/
 
+# Temporary files
+test_output*.txt
+verify_*.py
+*verification*.log
+
+# Debug artifacts
+debug_*.txt
+debug_*.py
+*.txt
+!requirements.txt
+!README.md
+installed_versions.txt
+models_list*.txt

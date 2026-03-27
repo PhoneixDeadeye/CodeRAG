@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 
 interface Shortcut {
     keys: string[];
@@ -43,54 +43,56 @@ export const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ isOpen, on
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-fade-in"
+                className="fixed inset-0 z-50 bg-black/80 animate-fade-in"
                 onClick={onClose}
             />
 
             {/* Modal */}
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
                 <div
-                    className="bg-sidebar-dark border border-border-dark rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-scale-in pointer-events-auto"
+                    className="bg-bg-base border border-border-default shadow-[8px_8px_0px_0px_white] max-w-lg w-full max-h-[80vh] overflow-hidden animate-scale-in pointer-events-auto flex flex-col"
                     onClick={e => e.stopPropagation()}
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-border-dark">
+                    <div className="flex items-center justify-between p-4 border-b border-border-default bg-bg-surface">
                         <div className="flex items-center gap-3">
                             <span className="material-symbols-outlined text-primary">keyboard</span>
-                            <h2 className="text-lg font-bold text-white">Keyboard Shortcuts</h2>
+                            <h2 className="text-lg font-bold text-white font-mono uppercase tracking-tight">SHORTCUT_COMMANDS</h2>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-border-dark rounded-lg transition-colors text-text-secondary hover:text-white"
+                            className="p-1 hover:bg-primary hover:text-black transition-colors text-text-secondary border border-transparent hover:border-black"
                         >
                             <span className="material-symbols-outlined text-[20px]">close</span>
                         </button>
                     </div>
 
                     {/* Content */}
-                    <div className="p-4 overflow-y-auto max-h-[60vh]">
+                    <div className="p-0 overflow-y-auto max-h-[60vh] custom-scrollbar">
                         {categories.map(category => (
-                            <div key={category} className="mb-6 last:mb-0">
-                                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">
-                                    {category}
-                                </h3>
-                                <div className="space-y-2">
+                            <div key={category} className="border-b border-border-default last:border-b-0">
+                                <div className="px-4 py-2 bg-bg-elevated border-b border-border-subtle">
+                                    <h3 className="text-[10px] font-bold text-primary uppercase tracking-widest font-mono">
+                                        // {category}
+                                    </h3>
+                                </div>
+                                <div className="divide-y divide-border-subtle">
                                     {shortcuts
                                         .filter(s => s.category === category)
                                         .map((shortcut, idx) => (
                                             <div
                                                 key={idx}
-                                                className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-border-dark/50 transition-colors"
+                                                className="flex items-center justify-between py-3 px-4 hover:bg-white/5 transition-colors group"
                                             >
-                                                <span className="text-sm text-white">{shortcut.description}</span>
+                                                <span className="text-sm text-text-secondary group-hover:text-white font-mono">{shortcut.description}</span>
                                                 <div className="flex items-center gap-1">
                                                     {shortcut.keys.map((key, keyIdx) => (
                                                         <React.Fragment key={keyIdx}>
-                                                            <kbd className="px-2 py-1 text-xs font-mono bg-background-dark border border-border-dark rounded text-text-secondary">
+                                                            <kbd className="min-w-[24px] px-1.5 py-0.5 text-[10px] font-bold font-mono bg-black border border-border-default text-text-primary uppercase flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(255,255,255,0.1)]">
                                                                 {key}
                                                             </kbd>
                                                             {keyIdx < shortcut.keys.length - 1 && (
-                                                                <span className="text-text-secondary text-xs">+</span>
+                                                                <span className="text-border-default text-[10px] font-bold">+</span>
                                                             )}
                                                         </React.Fragment>
                                                     ))}
@@ -103,9 +105,9 @@ export const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ isOpen, on
                     </div>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-border-dark bg-background-dark/50">
-                        <p className="text-xs text-text-secondary text-center">
-                            Press <kbd className="px-1.5 py-0.5 text-xs font-mono bg-border-dark border border-border-dark/50 rounded">?</kbd> to toggle this help
+                    <div className="p-3 border-t border-border-default bg-black">
+                        <p className="text-[10px] text-text-secondary text-center font-mono uppercase">
+                            PRESS <span className="text-primary font-bold">?</span> TO_TOGGLE_HELP_MENU
                         </p>
                     </div>
                 </div>
@@ -114,26 +116,3 @@ export const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ isOpen, on
     );
 };
 
-// Hook for triggering the shortcuts modal
-export const useKeyboardShortcutsModal = () => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Show on ? key (Shift + /)
-            if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                // Don't trigger if typing in an input
-                const target = e.target as HTMLElement;
-                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
-                e.preventDefault();
-                setIsOpen(prev => !prev);
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    return { isOpen, setIsOpen, close: () => setIsOpen(false) };
-};

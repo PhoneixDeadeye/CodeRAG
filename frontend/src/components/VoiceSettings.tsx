@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../lib/logger';
 
 interface VoiceSettingsProps {
     onClose?: () => void;
@@ -36,7 +37,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
             try {
                 setSettings(JSON.parse(saved));
             } catch (e) {
-                console.error("Failed to parse voice settings", e);
+                logger.error("Failed to parse voice settings", e);
             }
         }
     }, []);

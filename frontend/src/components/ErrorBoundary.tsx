@@ -1,5 +1,7 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { logger } from '../lib/logger';
 
 interface Props {
     children: ReactNode;
@@ -22,12 +24,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        // Log to console in development only
-        if (import.meta.env.MODE === 'development') {
-            console.error(`Uncaught error in ${this.props.name || 'component'}:`, error, errorInfo);
-        }
-        // In production, send to error tracking service
-        // e.g., Sentry, LogRocket, etc.
+        logger.error(`Uncaught error in ${this.props.name || 'component'}:`, error, errorInfo);
     }
 
     public render() {
@@ -35,20 +32,30 @@ export class ErrorBoundary extends Component<Props, State> {
             if (this.props.fallback) return this.props.fallback;
 
             return (
-                <div className="p-4 m-4 bg-red-500/10 border border-red-500/30 rounded-lg text-center animate-fade-in">
-                    <div className="flex flex-col items-center gap-2">
-                        <span className="material-symbols-outlined text-4xl text-red-500">
-                            error_outline
-                        </span>
-                        <h3 className="text-lg font-bold text-red-400">Something went wrong</h3>
-                        <p className="text-sm text-text-secondary max-w-md">
-                            {this.state.error?.message || 'An unexpected error occurred in this component.'}
+                <div className="flex flex-col items-center justify-center min-h-screen bg-bg-base text-primary font-display p-6">
+                    <div className="max-w-md w-full border border-border-default shadow-[4px_4px_0_0_rgb(var(--primary))] p-8 space-y-6 animate-fade-in bg-black">
+                        <div className="flex items-center space-x-3 text-red-500">
+                            <AlertTriangle className="w-8 h-8" />
+                            <h1 className="text-2xl font-bold uppercase tracking-wider">System Error</h1>
+                        </div>
+                        
+                        <p className="text-text-secondary leading-relaxed">
+                            We encountered an unexpected application error in <strong>{this.props.name || 'Core System'}</strong>.
                         </p>
+                        
+                        <div className="bg-bg-elevation-1 p-4 rounded text-xs font-mono text-text-muted overflow-auto max-h-40 break-all border border-border-default">
+                            {this.state.error?.toString() || 'An unexpected error occurred.'}
+                        </div>
+                        
                         <button
-                            onClick={() => this.setState({ hasError: false })}
-                            className="mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm font-bold"
+                            onClick={() => {
+                                this.setState({ hasError: false });
+                                window.location.reload();
+                            }}
+                            className="w-full flex items-center justify-center space-x-2 bg-primary text-black font-semibold py-3 px-4 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_white] border border-transparent transition-all"
                         >
-                            Try Again
+                            <RefreshCw className="w-4 h-4" />
+                            <span>RESTART SYSTEM</span>
                         </button>
                     </div>
                 </div>

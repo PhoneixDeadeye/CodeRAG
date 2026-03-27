@@ -8,42 +8,165 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
       - ./data:/app/data
+      - ./app:/app/app
+      - ./alembic.ini:/app/alembic.ini
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - SECRET_KEY=${SECRET_KEY}
-      - LOG_LEVEL=INFO
-    depends_on:
-      - db
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in environment}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SQL_ALCHEMY_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-coderag}:${POSTGRES_PASSWORD:-coderag}@postgres:5432/${POSTGRES_DB:-coderag}
+      - QDRANT_URL=http://qdrant:6333
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - coderag-network
+
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "5173:80"
+    # No dev volume mounts — production builds bake assets into the image
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - coderag-network
 
-  db:
+  postgres:
     image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-coderag}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-coderag}
+      - POSTGRES_DB=${POSTGRES_DB:-coderag}
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_USER=coderag
-      - POSTGRES_PASSWORD=coderag_dev
-      - POSTGRES_DB=coderag
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-coderag} -d ${POSTGRES_DB:-coderag}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
+    networks:
+      - coderag-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - coderag-network
+
+  qdrant:
+    image: qdrant/qdrant:v1.8.2
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/tcp/localhost/6333"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - coderag-network
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.tasks worker --loglevel=info --concurrency=4
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in environment}
+      - SQL_ALCHEMY_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-coderag}:${POSTGRES_PASSWORD:-coderag}@postgres:5432/${POSTGRES_DB:-coderag}
+      - QDRANT_URL=http://qdrant:6333
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - coderag-network
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.tasks beat --loglevel=info
+    volumes:
+      - ./app:/app/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - SQL_ALCHEMY_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-coderag}:${POSTGRES_PASSWORD:-coderag}@postgres:5432/${POSTGRES_DB:-coderag}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - coderag-network
+
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.tasks flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - coderag-network
+
+networks:
+  coderag-network:
+    driver: bridge
 
 volumes:
+  data:
   postgres_data:
+  redis_data:
+  qdrant_data:

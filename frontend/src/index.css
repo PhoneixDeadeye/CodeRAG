@@ -1,12 +1,45 @@
 @import "tailwindcss";
 
+/* ===== CSS Custom Properties (Theme Variables) ===== */
+:root {
+  /* Modern Immersion Identity */
+  --primary-hue: 220;
+  /* Deep Modern Blue/Purple */
+  --primary: #4F46E5; /* Indigo 600 */
+  --primary-hover: #6366F1; /* Indigo 500 */
+  --primary-glow: rgba(79, 70, 229, 0.4);
+
+  /* Accent Colors - High Contrast Muted */
+  --accent-teal: #14B8A6;
+  --accent-cyan: #06B6D4;
+  --accent-emerald: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-rose: #F43F5E;
+
+  /* Background Colors - Glassmorphic Dark */
+  --bg-base: #0f172a; /* Slate 900 */
+  --bg-dark: #020617; /* Slate 950 */
+  --bg-surface: rgba(30, 41, 59, 0.6); /* Slate 800 blur */
+  --bg-elevated: rgba(51, 65, 85, 0.4);
+
+  /* Border Colors - Subtle Glass */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+
+  /* Text Colors */
+  --text-primary: #EEEEEE;
+  --text-secondary: #888888;
+  --text-muted: #555555;
+}
+
 /* ===== Base Styles ===== */
 * {
   box-sizing: border-box;
 }
 
 html {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -14,41 +47,60 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: #101622;
-  color: #ffffff;
+  background: var(--bg-base);
+  color: var(--text-primary);
   overflow-x: hidden;
 }
 
+/* ===== Brutalist Background (Dot Grid) ===== */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(var(--border-subtle) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.5;
+}
+
 .font-body {
-  font-family: 'Noto Sans', sans-serif;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
 }
 
 code,
 pre,
 .font-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-/* ===== Custom Scrollbar ===== */
+/* ===== Custom Scrollbar (Flat) ===== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-base);
+  border-left: 1px solid var(--border-subtle);
 }
 
 ::-webkit-scrollbar-track {
-  background: #111722;
+  background: var(--bg-base);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232f48;
-  border-radius: 4px;
+  background: var(--border-strong);
+  border-radius: 0px;
+  /* SHARP */
+  border: 2px solid var(--bg-base);
+  /* Contrast Gap */
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #324467;
+  background: var(--primary);
+  /* Interaction Pop */
 }
 
-/* ===== Syntax Highlighting Classes ===== */
+/* ===== Syntax Highlighting Classes (Adjusted) ===== */
 .token-keyword {
   color: #c678dd;
 }
@@ -100,6 +152,18 @@ pre,
   }
 }
 
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes scale-in {
   from {
     opacity: 0;
@@ -109,6 +173,34 @@ pre,
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -146,13 +238,100 @@ pre,
   }
 }
 
+@keyframes gradient-shift {
+  0% {
+    opacity: 0.8;
+    transform: scale(1) rotate(0deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1.1) rotate(2deg);
+  }
+}
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px var(--primary-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 40px var(--primary-glow), 0 0 60px var(--primary-glow);
+  }
+}
+
+@keyframes typing-dot {
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+@keyframes border-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ===== Animation Utilities ===== */
 .animate-fade-in {
   animation: fade-in 0.3s ease-out forwards;
 }
 
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
 .animate-scale-in {
   animation: scale-in 0.2s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out forwards;
 }
 
 .animate-pulse {
@@ -161,6 +340,38 @@ pre,
 
 .animate-float {
   animation: float 6s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* ===== Typing Indicator ===== */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+.typing-indicator .dot {
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+.typing-indicator .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
 /* ===== Skeleton Loading ===== */
@@ -176,19 +387,28 @@ pre,
 
 /* ===== Selection ===== */
 ::selection {
-  background: rgba(19, 91, 236, 0.3);
+  background: hsla(222, 89%, 50%, 0.3);
   color: #fff;
 }
 
 /* ===== Focus States ===== */
 .focus-ring:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #101622, 0 0 0 4px rgba(19, 91, 236, 0.5);
+  box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px var(--primary-glow);
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px var(--primary);
 }
 
 /* ===== Transition Utilities ===== */
 .transition-smooth {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-spring {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ===== Prose Overrides for Chat ===== */
@@ -201,30 +421,264 @@ pre,
 
 /* ===== Gradient Text ===== */
 .gradient-text {
-  background: linear-gradient(135deg, #135bec, #8b5cf6);
+  background: linear-gradient(135deg, var(--primary), var(--accent-teal));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* ===== Hover Lift Effect ===== */
+.gradient-text-animated {
+  background: linear-gradient(135deg, var(--primary), var(--accent-teal), var(--accent-cyan), var(--primary));
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: border-flow 5s ease infinite;
+}
+
+/* ===== Brutalist Hover Effects ===== */
 .hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.1s ease;
 }
 
 .hover-lift:hover {
-  transform: translateY(-2px);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0px 0px var(--border-default);
 }
 
-/* ===== Glass Effect ===== */
-.glass {
-  background: rgba(17, 23, 34, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+/* ===== Raw Panels (Replaces Glass) ===== */
+.glass,
+.glass-light,
+.glass-strong {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  backdrop-filter: none;
+  /* NO BLUR */
 }
 
-.glass-light {
-  background: rgba(25, 34, 51, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+.glass-strong {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-strong);
+}
+
+/* ===== Gradient Border -> Solid Border ===== */
+.gradient-border {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 0px;
+}
+
+.gradient-border::before {
+  display: none;
+  /* Kill the gradient border */
+}
+
+/* ===== Animated Border (Keep but Sharp) ===== */
+.animated-border::before {
+  background: linear-gradient(90deg, var(--primary), var(--bg-base), var(--primary));
+  background-size: 200% 100%;
+  animation: border-flow 2s steps(4) infinite;
+  /* Steps for tech feel */
+}
+
+/* ===== Brutalist Card ===== */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 0px;
+  transition: all 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--primary);
+  box-shadow: 4px 4px 0px 0px var(--border-default);
+}
+
+.card-interactive {
+  cursor: pointer;
+}
+
+.card-interactive:hover {
+  transform: translate(-2px, -2px);
+  border-color: var(--primary);
+  box-shadow: 4px 4px 0px 0px var(--primary);
+}
+
+/* ===== Brutalist Buttons ===== */
+.btn-primary {
+  background: var(--primary);
+  color: black;
+  /* High contrast on Neon Green */
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 0px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.1s cubic-bezier(0, 0, 0.2, 1);
+  box-shadow: 4px 4px 0px 0px white;
+  /* Sharp white shadow */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.btn-primary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px white;
+  border: 2px solid white;
+}
+
+.btn-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px white;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 0px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.btn-ghost:hover {
+  background: var(--bg-elevated);
+  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 2px 2px 0px 0px var(--primary);
+}
+
+/* ===== Input Styles (Terminal) ===== */
+.input-enhanced {
+  background: var(--input-dark);
+  border: 1px solid var(--border-default);
+  border-radius: 0px;
+  padding: 12px 16px;
+  color: var(--primary);
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s ease;
+}
+
+.input-enhanced:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 4px 4px 0px 0px var(--border-strong);
+  background: black;
+}
+
+.input-enhanced::placeholder {
+  color: var(--text-muted);
+}
+
+/* ===== Status Indicators (Square) ===== */
+.status-online,
+.status-offline,
+.status-loading {
+  width: 8px;
+  height: 8px;
+  border-radius: 0px;
+  /* Square dots */
+}
+
+.status-online {
+  background: var(--primary);
+  box-shadow: none;
+}
+
+.status-offline {
+  background: var(--text-muted);
+}
+
+.status-loading {
+  background: var(--accent-amber);
+  border-radius: 0px;
+}
+
+/* ===== Avatar Styles (Sharp) ===== */
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  border: 1px solid var(--border-default);
+}
+
+.avatar-user {
+  background: var(--bg-elevated);
+  /* Generate a hash pattern or something cool later */
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.avatar-ai {
+  background: var(--primary);
+  color: black;
+}
+
+.avatar-ai::after {
+  display: none;
+  /* No glow */
+}
+
+/* ===== Tooltip (Terminal Style) ===== */
+.tooltip::after {
+  background: black;
+  border: 1px solid var(--primary);
+  border-radius: 0px;
+  color: var(--primary);
+  font-family: 'JetBrains Mono', monospace;
+  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== Divider (Dotted) ===== */
+.divider {
+  height: 1px;
+  background: none;
+  border-top: 1px dashed var(--border-default);
+  margin: 16px 0;
+}
+
+/* ===== Badge (Tag Style) ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 0px;
+  font-size: 10px;
+  /* Smaller, sharper */
+  font-weight: 700;
+  text-transform: uppercase;
+  background: black;
+  border: 1px solid var(--border-subtle);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.badge-primary {
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 1px 1px 0px 0px var(--primary);
+}
+
+.badge-success {
+  border-color: #00FF00;
+  color: #00FF00;
+}
+
+.badge-warning {
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.badge-error {
+  border-color: var(--accent-rose);
+  color: var(--accent-rose);
 }

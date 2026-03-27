@@ -1,65 +1,130 @@
 ============================= test session starts =============================
-platform win32 -- Python 3.11.9, pytest-8.4.1, pluggy-1.6.0
+platform win32 -- Python 3.11.9, pytest-8.3.4, pluggy-1.6.0 -- C:\Users\agarw\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+hypothesis profile 'default' -> database=DirectoryBasedExampleDatabase(WindowsPath('C:/Users/agarw/OneDrive/Desktop/Rohan/CodeRAG/.hypothesis/examples'))
+django: version: 5.2.12
 rootdir: C:\Users\agarw\OneDrive\Desktop\Rohan\CodeRAG
-plugins: anyio-4.10.0, asyncio-1.1.0, typeguard-4.4.4
-asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 523 items / 2 errors
+configfile: pytest.ini
+plugins: anyio-4.12.1, hypothesis-6.92.9, locust-2.43.3, asyncio-1.1.0, django-4.9.0, typeguard-4.4.4
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 105 items
 
-=================================== ERRORS ====================================
-_ ERROR collecting data/users/359004fe-3bb3-4d8a-8191-0ae4945256ac/repos/b535717b-92be-4b80-96a2-9754ee72e2ae/source/examples/javascript/tests _
-..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<frozen importlib._bootstrap>:1204: in _gcd_import
-    ???
-<frozen importlib._bootstrap>:1176: in _find_and_load
-    ???
-<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
-    ???
-<frozen importlib._bootstrap>:690: in _load_unlocked
-    ???
-..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
-    exec(co, module.__dict__)
-data\users\359004fe-3bb3-4d8a-8191-0ae4945256ac\repos\b535717b-92be-4b80-96a2-9754ee72e2ae\source\examples\javascript\tests\conftest.py:3: in <module>
-    from js_example import app
-E   ModuleNotFoundError: No module named 'js_example'
-_ ERROR collecting data/users/359004fe-3bb3-4d8a-8191-0ae4945256ac/repos/b535717b-92be-4b80-96a2-9754ee72e2ae/source/examples/tutorial/tests _
-..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<frozen importlib._bootstrap>:1204: in _gcd_import
-    ???
-<frozen importlib._bootstrap>:1176: in _find_and_load
-    ???
-<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
-    ???
-<frozen importlib._bootstrap>:690: in _load_unlocked
-    ???
-..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
-    exec(co, module.__dict__)
-data\users\359004fe-3bb3-4d8a-8191-0ae4945256ac\repos\b535717b-92be-4b80-96a2-9754ee72e2ae\source\examples\tutorial\tests\conftest.py:6: in <module>
-    from flaskr import create_app
-E   ModuleNotFoundError: No module named 'flaskr'
+tests/integration/test_rag_flow.py::test_rag_ingest_and_query PASSED     [  0%]
+tests/integration/test_rate_limit_integration.py::test_login_rate_limit_integration PASSED [  1%]
+tests/integration/test_streaming_mock.py::test_streaming_happy_path PASSED [  2%]
+tests/test_api_health.py::test_api_root PASSED                           [  3%]
+tests/test_api_health.py::test_ready_endpoint_returns_dependency_checks PASSED [  4%]
+tests/test_async_db.py::test_async_sqlite_connection PASSED              [  5%]
+tests/test_auth.py::test_register_new_user PASSED                        [  6%]
+tests/test_auth.py::test_register_duplicate_email PASSED                 [  7%]
+tests/test_auth.py::test_register_weak_password PASSED                   [  8%]
+tests/test_auth.py::test_register_invalid_email PASSED                   [  9%]
+tests/test_auth.py::test_login_success PASSED                            [ 10%]
+tests/test_auth.py::test_login_wrong_password PASSED                     [ 11%]
+tests/test_auth.py::test_login_nonexistent_user PASSED                   [ 12%]
+tests/test_auth.py::test_get_current_user PASSED                         [ 13%]
+tests/test_auth.py::test_refresh_token_rotation PASSED                   [ 14%]
+tests/test_auth.py::test_refresh_token_reuse_is_blocked PASSED           [ 15%]
+tests/test_auth.py::test_logout_revokes_refresh_token PASSED             [ 16%]
+tests/test_auth_flow.py::TestAuthFlow::test_register_new_user PASSED     [ 17%]
+tests/test_auth_flow.py::TestAuthFlow::test_register_duplicate_email_fails PASSED [ 18%]
+tests/test_auth_flow.py::TestAuthFlow::test_login_with_valid_credentials PASSED [ 19%]
+tests/test_auth_flow.py::TestAuthFlow::test_login_with_wrong_password_fails PASSED [ 20%]
+tests/test_auth_flow.py::TestAuthFlow::test_protected_route_with_valid_token PASSED [ 20%]
+tests/test_auth_flow.py::TestAuthFlow::test_protected_route_without_token_fails PASSED [ 21%]
+tests/test_auth_flow.py::TestAuthFlow::test_refresh_token_flow PASSED    [ 22%]
+tests/test_chat.py::test_chat_requires_repo PASSED                       [ 23%]
+tests/test_chat.py::test_chat_empty_query PASSED                         [ 24%]
+tests/test_chat.py::test_chat_query_too_long PASSED                      [ 25%]
+tests/test_chat.py::test_feedback_submission PASSED                      [ 26%]
+tests/test_chat.py::test_feedback_without_comment PASSED                 [ 27%]
+tests/test_chat.py::test_session_lifecycle PASSED                        [ 28%]
+tests/test_chat.py::test_add_message_to_session PASSED                   [ 29%]
+tests/test_chat.py::test_invalid_message_role PASSED                     [ 30%]
+tests/test_chat.py::test_export_session_json PASSED                      [ 31%]
+tests/test_chat.py::test_export_session_markdown PASSED                  [ 32%]
+tests/test_config.py::TestSecretKeyValidation::test_secure_key_accepted PASSED [ 33%]
+tests/test_config.py::TestSecretKeyValidation::test_insecure_default_key_rejected PASSED [ 34%]
+tests/test_config.py::TestSecretKeyValidation::test_short_key_rejected PASSED [ 35%]
+tests/test_config.py::TestSecretKeyValidation::test_31_char_key_rejected PASSED [ 36%]
+tests/test_config.py::TestSecretKeyValidation::test_32_char_key_accepted PASSED [ 37%]
+tests/test_config.py::TestBM25JsonSerialization::test_bm25_saves_as_json PASSED [ 38%]
+tests/test_config.py::TestBM25JsonSerialization::test_bm25_round_trip PASSED [ 39%]
+tests/test_config.py::TestRegistrationRateLimiting::test_register_rate_limit_exists PASSED [ 40%]
+tests/test_config.py::TestRegistrationRateLimiting::test_register_works_under_limit PASSED [ 40%]
+tests/test_config.py::TestConversationMemoryWindowing::test_memory_has_window_limit PASSED [ 41%]
+tests/test_flow_e2e.py::test_e2e_flow SKIPPED (Could not connect to ...) [ 42%]
+tests/test_ingest.py::test_process_repo_files PASSED                     [ 43%]
+tests/test_ingest.py::test_load_and_index_repo_clone PASSED              [ 44%]
+tests/test_ingest.py::test_redact_secrets PASSED                         [ 45%]
+tests/test_ingest_pipeline.py::TestSecretRedaction::test_redacts_aws_key PASSED [ 46%]
+tests/test_ingest_pipeline.py::TestSecretRedaction::test_redacts_github_token PASSED [ 47%]
+tests/test_ingest_pipeline.py::TestSecretRedaction::test_redacts_openai_key PASSED [ 48%]
+tests/test_ingest_pipeline.py::TestSecretRedaction::test_redacts_generic_api_key PASSED [ 49%]
+tests/test_ingest_pipeline.py::TestSecretRedaction::test_preserves_non_secret_content PASSED [ 50%]
+tests/test_ingest_pipeline.py::TestIngestionPipeline::test_process_python_file PASSED [ 51%]
+tests/test_ingest_pipeline.py::TestIngestionPipeline::test_process_multiple_languages PASSED [ 52%]
+tests/test_ingest_pipeline.py::TestIngestionPipeline::test_ignores_non_code_files PASSED [ 53%]
+tests/test_ingest_pipeline.py::TestIngestionPipeline::test_empty_directory_returns_empty PASSED [ 54%]
+tests/test_ingest_pipeline.py::TestIngestionPipeline::test_secrets_are_redacted_in_chunks PASSED [ 55%]
+tests/test_integration.py::test_root_endpoint PASSED                     [ 56%]
+tests/test_integration.py::test_auth_flow PASSED                         [ 57%]
+tests/test_integration.py::test_ingest_endpoint PASSED                   [ 58%]
+tests/test_integration.py::test_chat_endpoint PASSED                     [ 59%]
+tests/test_rag_engine.py::test_create_vector_db PASSED                   [ 60%]
+tests/test_rag_engine.py::test_get_qa_chain_no_db PASSED                 [ 60%]
+tests/test_rag_engine.py::test_get_qa_chain_success PASSED               [ 61%]
+tests/test_rate_limiter.py::TestRateLimiterCore::test_allows_under_limit PASSED [ 62%]
+tests/test_rate_limiter.py::TestRateLimiterCore::test_blocks_at_limit PASSED [ 63%]
+tests/test_rate_limiter.py::TestRateLimiterCore::test_different_keys_are_independent PASSED [ 64%]
+tests/test_rate_limiter.py::TestRateLimiterCore::test_remaining_count PASSED [ 65%]
+tests/test_rate_limiter.py::TestRateLimiterCore::test_recovers_after_window PASSED [ 66%]
+tests/test_rate_limiter.py::TestLoginRateLimit::test_check_login_limit_passes_under_limit PASSED [ 67%]
+tests/test_rate_limiter.py::TestLoginRateLimit::test_check_login_limit_raises_429 PASSED [ 68%]
+tests/test_rate_limiter.py::TestChatRateLimit::test_check_chat_limit_passes_under_limit PASSED [ 69%]
+tests/test_rate_limiter.py::TestChatRateLimit::test_check_chat_limit_raises_429 PASSED [ 70%]
+tests/test_repos.py::test_list_repos_empty PASSED                        [ 71%]
+tests/test_repos.py::test_ingest_invalid_url PASSED                      [ 72%]
+tests/test_repos.py::test_ingest_invalid_format PASSED                   [ 73%]
+tests/test_repos.py::test_get_files_no_repo PASSED                       [ 74%]
+tests/test_repos.py::test_get_file_content_no_repo PASSED                [ 75%]
+tests/test_repos.py::test_search_empty_query PASSED                      [ 76%]
+tests/test_repos.py::test_search_query_too_long PASSED                   [ 77%]
+tests/test_repos.py::test_search_invalid_regex PASSED                    [ 78%]
+tests/test_repos.py::test_symbols_no_repo PASSED                         [ 79%]
+tests/test_repos.py::test_analyze_dependencies_no_repo PASSED            [ 80%]
+tests/test_repos.py::test_diff_no_repo PASSED                            [ 80%]
+tests/test_repos.py::test_config_endpoint PASSED                         [ 81%]
+tests/test_repos.py::test_delete_nonexistent_repo PASSED                 [ 82%]
+tests/test_security.py::TestSSRFProtection::test_allows_valid_github_https PASSED [ 83%]
+tests/test_security.py::TestSSRFProtection::test_blocks_localhost PASSED [ 84%]
+tests/test_security.py::TestSSRFProtection::test_blocks_private_10_network PASSED [ 85%]
+tests/test_security.py::TestSSRFProtection::test_blocks_private_172_network PASSED [ 86%]
+tests/test_security.py::TestSSRFProtection::test_blocks_private_192_network PASSED [ 87%]
+tests/test_security.py::TestSSRFProtection::test_blocks_loopback_127_range PASSED [ 88%]
+tests/test_security.py::TestSSRFProtection::test_blocks_link_local PASSED [ 89%]
+tests/test_security.py::TestSSRFProtection::test_rejects_invalid_scheme_ftp PASSED [ 90%]
+tests/test_security.py::TestSSRFProtection::test_rejects_invalid_scheme_file PASSED [ 91%]
+tests/test_security.py::TestSSRFProtection::test_rejects_non_allowlisted_host PASSED [ 92%]
+tests/test_security.py::TestSSRFProtection::test_rejects_url_with_credentials PASSED [ 93%]
+tests/test_security.py::TestSSRFProtection::test_allows_upload_scheme PASSED [ 94%]
+tests/test_security.py::TestSSRFProtection::test_rejects_no_hostname PASSED [ 95%]
+tests/test_security.py::TestSSRFProtection::test_rejects_dns_resolution_failure PASSED [ 96%]
+tests/test_sessions.py::test_create_session PASSED                       [ 97%]
+tests/test_streaming.py::TestStreamingSSE::test_stream_returns_event_stream_content_type PASSED [ 98%]
+tests/test_streaming.py::TestStreamingSSE::test_stream_sse_lines_are_valid_json PASSED [ 99%]
+tests/test_streaming.py::TestStreamingSSE::test_stream_error_or_done_when_no_repo PASSED [100%]
+
 ============================== warnings summary ===============================
-routers\auth.py:24
-  C:\Users\agarw\OneDrive\Desktop\Rohan\CodeRAG\routers\auth.py:24: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
-    @validator('password')
+app\api\routers\auth.py:55
+  C:\Users\agarw\OneDrive\Desktop\Rohan\CodeRAG\app\api\routers\auth.py:55: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class APIKeyResponse(BaseModel):
 
-routers\sessions.py:26
-  C:\Users\agarw\OneDrive\Desktop\Rohan\CodeRAG\routers\sessions.py:26: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
-    @validator('name')
-
-routers\sessions.py:39
-  C:\Users\agarw\OneDrive\Desktop\Rohan\CodeRAG\routers\sessions.py:39: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
-    @validator('role')
-
-routers\sessions.py:45
-  C:\Users\agarw\OneDrive\Desktop\Rohan\CodeRAG\routers\sessions.py:45: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
-    @validator('content')
+tests/integration/test_streaming_mock.py::test_streaming_happy_path
+  C:\Users\agarw\OneDrive\Desktop\Rohan\CodeRAG\app\api\routers\streaming.py:158: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    save_db.add(ai_msg)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-=========================== short test summary info ===========================
-ERROR data/users/359004fe-3bb3-4d8a-8191-0ae4945256ac/repos/b535717b-92be-4b80-96a2-9754ee72e2ae/source/examples/javascript/tests
-ERROR data/users/359004fe-3bb3-4d8a-8191-0ae4945256ac/repos/b535717b-92be-4b80-96a2-9754ee72e2ae/source/examples/tutorial/tests
-!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!
-======================== 4 warnings, 2 errors in 0.62s ========================
+================= 104 passed, 1 skipped, 2 warnings in 44.52s =================

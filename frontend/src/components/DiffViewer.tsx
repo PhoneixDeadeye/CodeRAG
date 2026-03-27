@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { useToast } from '../contexts/ToastContextCore';
+import { useToast } from './Toast';
+import {
+    History, Share2, Sparkles, FileEdit, ArrowRight,
+    ChevronUp, ChevronDown, Columns, List,
+    Settings, X, MessageSquare, Code2, GitCommit, FileDiff
+} from 'lucide-react';
+import clsx from 'clsx';
 
 interface DiffLine {
     type: 'unchanged' | 'added' | 'deleted' | 'empty';
@@ -90,7 +96,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
     onClose,
     onExplainDiff,
 }) => {
-    const { showToast } = useToast();
+    const { addToast } = useToast();
     const [viewMode, setViewMode] = useState<'split' | 'unified'>('split');
 
     const pathParts = filePath.split('/');
@@ -114,174 +120,208 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#0b0f17]">
+        <div className="h-full flex flex-col bg-background-dark animate-fade-in relative z-50">
             {/* Header with Breadcrumbs */}
-            <header className="h-16 border-b border-border-dark flex items-center justify-between px-6 shrink-0 bg-sidebar-dark z-20">
+            <header className="h-16 border-b border-border-dark flex items-center justify-between px-6 shrink-0 bg-[#0f1219]">
                 <nav className="flex items-center text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                    <FileDiff className="w-4 h-4 text-text-muted mr-3" />
                     {pathParts.map((part, index) => (
                         <span key={index} className="flex items-center">
-                            <span className="text-[#92a4c9] hover:text-white transition-colors cursor-pointer">{part}</span>
-                            <span className="mx-2 text-[#566585]">/</span>
+                            <span className="text-text-muted hover:text-white transition-colors cursor-pointer">{part}</span>
+                            <span className="mx-2 text-border-dark">/</span>
                         </span>
                     ))}
-                    <span className="text-white bg-[#232f48] px-2 py-0.5 rounded border border-[#3a4b6e]">{fileName} (Diff)</span>
+                    <span className="text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">{fileName}</span>
                 </nav>
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                     <button
-                        onClick={() => showToast('History coming soon', 'info')}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-transparent hover:bg-[#232f48] text-[#92a4c9] hover:text-white transition-colors text-sm font-medium"
+                        onClick={() => addToast('History coming soon', 'info')}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-transparent hover:bg-white/5 text-text-secondary hover:text-white transition-colors text-xs font-medium"
                     >
-                        <span className="material-symbols-outlined text-[20px]">history</span>
+                        <History className="w-4 h-4" />
                         <span>History</span>
                     </button>
                     <button
-                        onClick={() => showToast('Sharing coming soon', 'info')}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-transparent hover:bg-[#232f48] text-[#92a4c9] hover:text-white transition-colors text-sm font-medium"
+                        onClick={() => addToast('Sharing coming soon', 'info')}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-transparent hover:bg-white/5 text-text-secondary hover:text-white transition-colors text-xs font-medium"
                     >
-                        <span className="material-symbols-outlined text-[20px]">share</span>
+                        <Share2 className="w-4 h-4" />
                         <span>Share</span>
                     </button>
-                    <div className="h-6 w-px bg-[#232f48]"></div>
+                    <div className="h-6 w-px bg-white/10"></div>
                     <button
                         onClick={() => onExplainDiff?.(oldContent, newContent, filePath)}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-teal-600 hover:from-primary/90 hover:to-teal-600/90 text-white text-xs font-bold rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
                     >
-                        <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                        <Sparkles className="w-4 h-4" />
                         <span>Explain Diff</span>
                     </button>
                 </div>
             </header>
 
             {/* Toolbar */}
-            <div className="h-14 border-b border-border-dark flex items-center justify-between px-6 bg-sidebar-dark/50 backdrop-blur-sm shrink-0">
-                <div className="flex items-center gap-4">
+            <div className="h-14 border-b border-border-dark flex items-center justify-between px-6 bg-[#0f1219]/90 backdrop-blur-sm shrink-0">
+                <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-[20px] text-yellow-500">edit_document</span>
+                        <div className="p-2 rounded-lg bg-yellow-500/10 text-yellow-500">
+                            <FileEdit className="w-4 h-4" />
+                        </div>
                         <div className="flex flex-col justify-center">
                             <span className="text-white text-sm font-bold leading-none">{fileName}</span>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                <span className="text-[#92a4c9] text-[10px]">-{deletedCount} lines</span>
-                                <span className="w-2 h-2 rounded-full bg-green-500 ml-1"></span>
-                                <span className="text-[#92a4c9] text-[10px]">+{addedCount} lines</span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="flex items-center gap-1 text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">
+                                    -{deletedCount} lines
+                                </span>
+                                <span className="flex items-center gap-1 text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">
+                                    +{addedCount} lines
+                                </span>
                             </div>
                         </div>
                     </div>
-                    <div className="h-8 w-px bg-[#232f48]"></div>
+
+                    <div className="h-8 w-px bg-white/10"></div>
+
                     {/* Branch Selector */}
-                    <div className="flex items-center gap-2 bg-[#232f48] rounded-md p-1">
-                        <button className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#111722] hover:bg-gray-800 transition text-xs font-medium text-white border border-border-dark">
-                            <span className="material-symbols-outlined text-[14px] text-gray-400">commit</span>
+                    <div className="flex items-center gap-2 bg-black/20 rounded-lg p-1 border border-white/5">
+                        <button className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 hover:bg-white/10 transition text-xs font-medium text-white border border-white/5">
+                            <GitCommit className="w-3.5 h-3.5 text-text-muted" />
                             <span>{oldBranch}</span>
-                            <span className="text-gray-500">{oldCommit}</span>
+                            <span className="text-text-muted font-mono bg-black/20 px-1 rounded">{oldCommit}</span>
                         </button>
-                        <span className="material-symbols-outlined text-[#566585] text-[16px]">arrow_right_alt</span>
-                        <button className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-[#111722] transition text-xs font-medium text-[#92a4c9] hover:text-white">
-                            <span className="material-symbols-outlined text-[14px]">commit</span>
+                        <ArrowRight className="w-4 h-4 text-text-muted" />
+                        <button className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-white/5 transition text-xs font-medium text-text-secondary hover:text-white">
+                            <GitCommit className="w-3.5 h-3.5 text-text-muted" />
                             <span>{newBranch}</span>
-                            <span className="text-gray-500">{newCommit}</span>
+                            <span className="text-text-muted font-mono bg-black/20 px-1 rounded">{newCommit}</span>
                         </button>
                     </div>
                 </div>
+
                 <div className="flex items-center gap-2">
                     {/* Navigation */}
-                    <div className="flex items-center bg-[#232f48] rounded-md p-0.5">
-                        <button className="p-1.5 rounded hover:bg-white/10 text-[#92a4c9] hover:text-white transition-colors" title="Previous Change">
-                            <span className="material-symbols-outlined text-[18px]">keyboard_arrow_up</span>
+                    <div className="flex items-center bg-black/20 rounded-lg p-0.5 border border-white/5">
+                        <button className="p-1.5 rounded hover:bg-white/10 text-text-muted hover:text-white transition-colors" title="Previous Change">
+                            <ChevronUp className="w-4 h-4" />
                         </button>
-                        <button className="p-1.5 rounded hover:bg-white/10 text-[#92a4c9] hover:text-white transition-colors" title="Next Change">
-                            <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
+                        <button className="p-1.5 rounded hover:bg-white/10 text-text-muted hover:text-white transition-colors" title="Next Change">
+                            <ChevronDown className="w-4 h-4" />
                         </button>
                     </div>
-                    <div className="h-6 w-px bg-[#232f48] mx-1"></div>
+
+                    <div className="h-6 w-px bg-white/10 mx-1"></div>
+
                     {/* View Mode Toggle */}
-                    <div className="flex items-center bg-[#232f48] rounded-md p-0.5 text-xs font-medium">
+                    <div className="flex items-center bg-black/20 rounded-lg p-0.5 text-xs font-medium border border-white/5">
                         <button
                             onClick={() => setViewMode('split')}
-                            className={`px-3 py-1.5 rounded transition-colors ${viewMode === 'split' ? 'bg-primary text-white shadow-sm' : 'text-[#92a4c9] hover:text-white hover:bg-white/5'}`}
+                            className={clsx(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded transition-all",
+                                viewMode === 'split' ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-white hover:bg-white/5"
+                            )}
                         >
+                            <Columns className="w-3.5 h-3.5" />
                             Split
                         </button>
                         <button
                             onClick={() => setViewMode('unified')}
-                            className={`px-3 py-1.5 rounded transition-colors ${viewMode === 'unified' ? 'bg-primary text-white shadow-sm' : 'text-[#92a4c9] hover:text-white hover:bg-white/5'}`}
+                            className={clsx(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded transition-all",
+                                viewMode === 'unified' ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-white hover:bg-white/5"
+                            )}
                         >
+                            <List className="w-3.5 h-3.5" />
                             Unified
                         </button>
                     </div>
-                    <button className="p-2 rounded text-[#92a4c9] hover:text-white hover:bg-[#232f48] transition-colors ml-1" title="Settings">
-                        <span className="material-symbols-outlined text-[20px]">settings</span>
+
+                    <button className="p-2 rounded text-text-muted hover:text-white hover:bg-white/5 transition-colors ml-1" title="Settings">
+                        <Settings className="w-5 h-5" />
                     </button>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded text-[#92a4c9] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="p-2 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
                         title="Close"
                     >
-                        <span className="material-symbols-outlined text-[20px]">close</span>
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
             </div>
 
             {/* Diff Content */}
-            <div className="flex-1 overflow-auto bg-[#0b0f17] relative">
+            <div className="flex-1 overflow-auto bg-[#0b0f17] relative scrollbar-thin">
                 <div className="min-w-full font-mono text-[13px] leading-[1.6] flex flex-col">
                     {diffLines.map((line, idx) => (
-                        <div key={idx} className="flex w-full hover:bg-white/5 group">
+                        <div key={idx} className="flex w-full hover:bg-white/5 group transition-colors">
                             {/* Left Side */}
-                            <div className={`w-1/2 flex border-r border-[#232f48] ${line.type === 'deleted' ? 'bg-red-500/10' :
-                                line.type === 'added' ? 'bg-[repeating-linear-gradient(45deg,#232f48,#232f48_2px,transparent_2px,transparent_8px)] opacity-30' :
-                                    ''
-                                }`}>
-                                <div className={`w-12 px-2 text-right select-none shrink-0 ${line.type === 'deleted' ? 'text-red-500' : 'text-[#4b5563] group-hover:text-[#6b7280]'
-                                    }`}>
-                                    {line.leftLineNum || ''}
+                            {(viewMode === 'split' || line.type !== 'added') && (
+                                <div className={clsx(
+                                    "flex border-r border-white/5 relative",
+                                    viewMode === 'split' ? 'w-1/2' : 'w-full',
+                                    line.type === 'deleted' ? 'bg-red-500/10' :
+                                        line.type === 'added' ? 'bg-[#1b222d] opacity-50' : ''
+                                )}>
+                                    <div className={clsx(
+                                        "w-12 px-2 text-right select-none shrink-0 border-r border-white/5 bg-black/20 py-0.5",
+                                        line.type === 'deleted' ? 'text-red-500 font-bold' : 'text-gray-600 group-hover:text-gray-500'
+                                    )}>
+                                        {line.leftLineNum || ''}
+                                    </div>
+                                    <div className="px-4 text-[#abb2bf] whitespace-pre overflow-x-hidden py-0.5">
+                                        {line.leftContent || ''}
+                                    </div>
                                 </div>
-                                <div className="px-4 text-[#abb2bf] whitespace-pre overflow-x-hidden">
-                                    {line.leftContent || ''}
-                                </div>
-                            </div>
+                            )}
+
                             {/* Right Side */}
-                            <div className={`w-1/2 flex ${line.type === 'added' ? 'bg-green-500/10' :
-                                line.type === 'deleted' ? 'bg-[repeating-linear-gradient(45deg,#232f48,#232f48_2px,transparent_2px,transparent_8px)] opacity-30' :
-                                    ''
-                                }`}>
-                                <div className={`w-12 px-2 text-right select-none shrink-0 ${line.type === 'added' ? 'text-green-500' : 'text-[#4b5563] group-hover:text-[#6b7280]'
-                                    }`}>
-                                    {line.rightLineNum || ''}
+                            {(viewMode === 'split' || line.type !== 'deleted') && (
+                                <div className={clsx(
+                                    "flex",
+                                    viewMode === 'split' ? 'w-1/2' : 'w-full',
+                                    line.type === 'added' ? 'bg-green-500/10' :
+                                        line.type === 'deleted' ? 'bg-[#1b222d] opacity-50' : ''
+                                )}>
+                                    <div className={clsx(
+                                        "w-12 px-2 text-right select-none shrink-0 border-r border-white/5 bg-black/20 border-l py-0.5",
+                                        line.type === 'added' ? 'text-green-500 font-bold' : 'text-gray-600 group-hover:text-gray-500'
+                                    )}>
+                                        {line.rightLineNum || ''}
+                                    </div>
+                                    <div className="px-4 text-[#abb2bf] whitespace-pre overflow-x-hidden py-0.5">
+                                        {line.rightContent || ''}
+                                    </div>
                                 </div>
-                                <div className="px-4 text-[#abb2bf] whitespace-pre overflow-x-hidden">
-                                    {line.rightContent || ''}
-                                </div>
-                            </div>
+                            )}
                         </div>
                     ))}
                 </div>
 
                 {/* Floating AI Button */}
-                <div className="absolute bottom-6 right-8">
+                <div className="absolute bottom-6 right-8 z-10">
                     <button
                         onClick={() => onExplainDiff?.(oldContent, newContent, filePath)}
-                        className="flex items-center gap-3 bg-primary hover:bg-primary/90 text-white px-5 py-3 rounded-full shadow-xl shadow-black/50 transition-transform hover:scale-105 active:scale-95 group"
+                        className="flex items-center gap-3 bg-primary hover:bg-primary/90 text-white px-5 py-3 rounded-full shadow-xl shadow-black/50 transition-all hover:scale-105 active:scale-95 group border border-white/10"
                     >
-                        <span className="material-symbols-outlined text-[24px] animate-pulse">chat</span>
+                        <MessageSquare className="w-5 h-5 animate-pulse" />
                         <span className="font-bold pr-1">Ask about this change</span>
                     </button>
                 </div>
             </div>
 
             {/* Status Bar */}
-            <footer className="h-8 bg-primary border-t border-primary flex items-center justify-between px-4 text-white text-xs select-none">
+            <footer className="h-8 bg-primary/20 border-t border-primary/30 flex items-center justify-between px-4 text-white text-xs select-none backdrop-blur-md">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5 hover:bg-white/10 px-2 py-0.5 rounded cursor-pointer transition-colors">
-                        <span className="material-symbols-outlined text-[14px]">source</span>
-                        <span className="font-medium">{oldBranch}*</span>
+                        <GitCommit className="w-3.5 h-3.5 text-primary" />
+                        <span className="font-medium text-primary-foreground">{oldBranch}*</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 text-text-secondary">
                     <span className="hover:bg-white/10 px-2 py-0.5 rounded cursor-pointer transition-colors">Diff: {viewMode === 'split' ? 'Split' : 'Unified'}</span>
                     <span className="hover:bg-white/10 px-2 py-0.5 rounded cursor-pointer transition-colors">UTF-8</span>
-                    <span className="hover:bg-white/10 px-2 py-0.5 rounded cursor-pointer transition-colors uppercase tracking-tight">{getLanguageFromPath(filePath)}</span>
-                    <span className="material-symbols-outlined text-[14px] hover:bg-white/10 p-0.5 rounded cursor-pointer">notifications</span>
+                    <span className="hover:bg-white/10 px-2 py-0.5 rounded cursor-pointer transition-colors uppercase tracking-tight flex items-center gap-1.5">
+                        <Code2 className="w-3.5 h-3.5" />
+                        {getLanguageFromPath(filePath)}
+                    </span>
                 </div>
             </footer>
         </div>

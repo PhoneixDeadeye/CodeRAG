@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Editor, { type OnMount, type Monaco } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
+import { FileCode, MessageSquare, TestTube, Check, Copy, X, FileText, Bot } from 'lucide-react';
 import type { FileContentResponse } from '../lib/api';
 
 interface CodeViewerProps {
@@ -19,8 +20,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
     onClose,
     onExplainCode,
     onGenerateTests,
-    onGenerateDocs,
-    onShowDependencies
+    onGenerateDocs
 }) => {
     const [copied, setCopied] = useState(false);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -114,7 +114,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
         }
     }, [highlightLines]);
 
-    const copyToClipboard = async () => {
+    const handleCopy = async () => {
         if (file) {
             await navigator.clipboard.writeText(file.content);
             setCopied(true);
@@ -139,26 +139,35 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
 
     if (!file) {
         return (
-            <div className="h-full flex items-center justify-center bg-[#0b0f17]">
-                <div className="text-center space-y-4 animate-fade-in">
+            <div className="h-full flex items-center justify-center bg-bg-base">
+                <div className="text-center space-y-4 animate-fade-in flex flex-col items-center">
                     <div className="relative inline-block">
-                        <div className="absolute inset-0 bg-text-secondary/10 rounded-full blur-xl" />
-                        <div className="relative p-4 bg-border-dark rounded-2xl border border-border-dark">
-                            <span className="material-symbols-outlined text-[40px] text-text-secondary">code</span>
+                        <div className="absolute inset-0 bg-primary/20 blur-xl" />
+                        <div className="relative p-6 bg-black border border-primary shadow-[4px_4px_0px_0px_rgba(204,255,0,0.2)]">
+                            <FileCode className="w-12 h-12 text-primary" />
                         </div>
                     </div>
-                    <div className="space-y-1">
-                        <p className="text-lg font-medium text-text-secondary">No file selected</p>
-                        <p className="text-sm text-text-secondary/70 max-w-xs mx-auto">
-                            Click a file in the explorer or a source citation to view it here
+                    <div className="space-y-2">
+                        <p className="text-xl font-bold text-white font-display uppercase tracking-tight">NO_FILE_SELECTED</p>
+                        <p className="text-sm text-text-muted font-mono max-w-xs mx-auto">
+                            SELECT_FILE_FROM_EXPLORER_OR_CITATION
                         </p>
                     </div>
-                    <div className="text-xs text-text-secondary/70 mt-4">
-                        <p>💡 Tip: Right-click code for AI features:</p>
-                        <ul className="mt-2 space-y-1">
-                            <li>✨ Explain This Code</li>
-                            <li>🧪 Generate Unit Tests</li>
-                            <li>📝 Generate Documentation</li>
+                    <div className="text-xs text-text-secondary mt-8 font-mono border border-border-default p-4 bg-bg-surface w-full max-w-sm text-left">
+                        <p className="border-b border-border-default pb-2 mb-2 font-bold text-primary uppercase">// AVAILABLE_ACTIONS</p>
+                        <ul className="space-y-2">
+                            <li className="flex items-center gap-2">
+                                <MessageSquare className="w-3 h-3" />
+                                <span>EXPLAIN_CODE</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <TestTube className="w-3 h-3" />
+                                <span>GEN_UNIT_TESTS</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <FileText className="w-3 h-3" />
+                                <span>GEN_DOCUMENTATION</span>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -166,92 +175,55 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
         );
     }
 
-    const lineCount = file.content.split('\n').length;
-    const fileSize = (new Blob([file.content]).size / 1024).toFixed(1);
-    const pathParts = file.path.split('/');
-    const fileName = pathParts.pop() || '';
-
     return (
-        <div className="h-full flex flex-col bg-[#0b0f17]">
-            {/* Breadcrumb Navigation */}
-            <div className="h-12 border-b border-border-dark flex items-center justify-between px-6 bg-sidebar-dark shrink-0">
-                <nav className="flex items-center text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                    {pathParts.map((part, index) => (
-                        <span key={index} className="flex items-center">
-                            <span className="text-[#92a4c9] hover:text-white transition-colors cursor-pointer">{part}</span>
-                            <span className="mx-2 text-[#566585]">/</span>
-                        </span>
-                    ))}
-                    <span className="text-white bg-[#232f48] px-2 py-0.5 rounded border border-[#3a4b6e]">{fileName}</span>
-                </nav>
-                <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-transparent hover:bg-[#232f48] text-[#92a4c9] hover:text-white transition-colors text-sm font-medium">
-                        <span className="material-symbols-outlined text-[18px]">history</span>
-                        <span className="hidden lg:inline">History</span>
-                    </button>
-                    <button
-                        onClick={() => onExplainCode?.(file.content, file.path)}
-                        className="flex items-center gap-2 px-4 py-1.5 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 transition-all"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-                        <span className="hidden lg:inline">Ask AI</span>
-                    </button>
-                </div>
-            </div>
-
+        <div className="h-full flex flex-col bg-bg-base">
             {/* File Toolbar */}
-            <div className="h-12 border-b border-border-dark flex items-center justify-between px-6 bg-sidebar-dark/50 backdrop-blur-sm shrink-0">
-                <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[20px] text-[#3178c6]">description</span>
-                    <div className="flex flex-col justify-center">
-                        <span className="text-white text-sm font-bold leading-none">{fileName}</span>
-                        <span className="text-[#92a4c9] text-[10px] mt-0.5">{fileSize} KB • {file.language} • {lineCount} lines</span>
+            <div className="flex items-center justify-between px-4 py-3 bg-bg-surface border-b border-border-default">
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="p-1.5 bg-primary border border-primary text-black">
+                        <FileCode className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider font-mono">Viewing_File:</span>
+                        <span className="text-sm font-bold text-white truncate font-mono" title={file.path}>
+                            {file.path.split('/').pop()}
+                        </span>
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={copyToClipboard}
-                        className="p-1.5 rounded text-[#92a4c9] hover:text-white hover:bg-[#232f48] transition-colors"
-                        title="Copy Content"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">
-                            {copied ? 'check' : 'content_copy'}
-                        </span>
-                    </button>
-                    {(file.language === 'python' || file.language === 'javascript' || file.language === 'typescript') && (
-                        <button
-                            onClick={() => onShowDependencies?.(file.path)}
-                            className="p-1.5 rounded text-[#92a4c9] hover:text-purple-400 hover:bg-[#232f48] transition-colors"
-                            title="Show Dependencies"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">account_tree</span>
-                        </button>
-                    )}
-                    {file.github_link && (
-                        <a
-                            href={file.github_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded text-[#92a4c9] hover:text-white hover:bg-[#232f48] transition-colors"
-                            title="Open in GitHub"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">open_in_new</span>
-                        </a>
-                    )}
+                <div className="flex items-center gap-2">
+                    {/* Explain Code */}
                     <button
                         onClick={() => onExplainCode?.(file.content, file.path)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded ml-2 bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-xs font-bold uppercase tracking-wide"
+                        className="p-2 text-text-secondary hover:text-primary hover:bg-bg-elevated transition-colors border border-transparent hover:border-primary rounded-none"
+                        title="EXPLAIN_CODE"
                     >
-                        <span className="material-symbols-outlined text-[16px]">psychology</span>
-                        Explain
+                        <MessageSquare className="w-4 h-4" />
                     </button>
-                    <div className="w-px h-4 bg-border-dark mx-1" />
+
+                    {/* Generate Tests */}
+                    <button
+                        onClick={() => onGenerateTests?.(file.content, file.path)}
+                        className="p-2 text-text-secondary hover:text-primary hover:bg-bg-elevated transition-colors border border-transparent hover:border-primary rounded-none"
+                        title="GEN_TESTS"
+                    >
+                        <TestTube className="w-4 h-4" />
+                    </button>
+
+                    {/* Copy Code */}
+                    <button
+                        onClick={handleCopy}
+                        className="p-2 text-text-secondary hover:text-white hover:bg-bg-elevated transition-colors border border-transparent hover:border-white rounded-none"
+                        title="COPY_SOURCE"
+                    >
+                        {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                    </button>
+
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded text-[#92a4c9] hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        title="Close"
+                        className="p-2 text-text-secondary hover:text-accent-rose hover:bg-accent-rose/10 transition-colors border border-transparent hover:border-accent-rose rounded-none ml-2"
+                        title="CLOSE_VIEWER"
                     >
-                        <span className="material-symbols-outlined text-[20px]">close</span>
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -285,10 +257,10 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
                 <div className="absolute bottom-6 right-8">
                     <button
                         onClick={() => onExplainCode?.(file.content, file.path)}
-                        className="flex items-center gap-3 bg-primary hover:bg-primary/90 text-white px-5 py-3 rounded-full shadow-xl shadow-black/50 transition-transform hover:scale-105 active:scale-95 group"
+                        className="flex items-center gap-3 bg-primary hover:bg-white text-black px-6 py-3 border border-primary hover:border-white shadow-[4px_4px_0px_0px_black] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all group rounded-none"
                     >
-                        <span className="material-symbols-outlined text-[24px] animate-pulse">chat</span>
-                        <span className="font-bold pr-1">Ask about this file</span>
+                        <Bot className="w-5 h-5 text-black" />
+                        <span className="font-bold font-mono uppercase tracking-tight">ASK_ABOUT_FILE</span>
                     </button>
                 </div>
             </div>

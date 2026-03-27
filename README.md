@@ -28,10 +28,10 @@ graph LR
     Frontend -->|API Config| API[FastAPI Backend]
     
     subgraph Background Workers
-        API -->|Enqueue Job| Worker[Async Worker]
+        API -->|Enqueue Job| Worker[Celery Worker]
         Worker -->|Clone & Chunk| Ingest[Ingestion Engine]
         Ingest -->|Embed| Gemini[Google Gemini API]
-        Gemini -->|Vectors| FAISS[FAISS Vector DB]
+        Gemini -->|Vectors| Qdrant[Qdrant Vector DB]
     end
     
     subgraph RAG Loop
@@ -46,7 +46,7 @@ graph LR
 
 -   **Frontend**: React (Vite), TypeScript, Tailwind CSS, Lucide Icons.
 -   **Backend**: Python, FastAPI, Uvicorn, SQLAlchemy (Async).
--   **AI/ML**: LangChain, Google Generative AI (Gemini 2.0), FAISS, Sentence Transformers.
+-   **AI/ML**: LangChain, Google Generative AI (Gemini 2.0), Qdrant, Sentence Transformers.
 -   **Tools**: GitPython, Tree-sitter, Playwright (E2E), Prometheus.
 
 
@@ -93,7 +93,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start the API server
-uvicorn api:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 *Server will start at `http://localhost:8000`*
 *API documentation available at `http://localhost:8000/docs`*
@@ -113,9 +113,26 @@ npm run dev
 
 ### 4. First Run
 1. Open your browser and navigate to `http://localhost:5173`
-2. Create an account (register)
+2. Create an account (register) or use guest mode
 3. Ingest your first repository using the sidebar
 4. Start chatting with your codebase!
+
+---
+
+## 🐳 Docker Deployment
+
+For production deployment using Docker:
+
+```bash
+# Using Docker Compose (recommended)
+docker-compose up -d
+
+# Or build and run manually
+docker build -t coderag .
+docker run -p 8000:8000 --env-file .env coderag
+```
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete production deployment guide.
 
 ---
 
@@ -175,24 +192,148 @@ npm test
 
 ```
 CodeRAG/
-├── api.py                 # FastAPI Application entry point
-├── ingest.py              # Git cloning & Code chunking logic
-├── rag_engine.py          # Vector DB & LLM Chain logic
-├── requirements.txt       # Python dependencies
-├── .env                   # API Keys (Not committed)
-├── vectorstore/           # FAISS index storage (Local DB)
+├── app/                       # Backend Application Package
+│   ├── api/                   # API Layer
+│   │   ├── main.py            # FastAPI Application entry point
+│   │   ├── routers/           # API route handlers
+│   │   │   ├── auth.py        # Authentication endpoints
+│   │   │   ├── repos.py       # Repository management
+│   │   │   ├── chat.py        # Chat/RAG endpoints
+│   │   │   ├── files.py       # File browsing
+│   │   │   └── ...            # Other routers
+│   │   ├── middleware.py      # Request tracing, security headers
+│   │   └── rate_limiter.py    # Rate limiting logic
+│   │
+│   ├── core/                  # Core Infrastructure
+│   │   ├── config.py          # Application settings
+│   │   ├── database.py        # SQLAlchemy models & session
+│   │   ├── errors.py          # Custom exception handlers
+│   │   ├── logging_config.py  # Centralized logging
+│   │   └── utils.py           # Path validation, helpers
+│   │
+│   └── services/              # Business Logic
+│       ├── auth.py            # JWT authentication
+│       ├── ingest.py          # Git cloning & code chunking
+│       ├── rag_engine.py      # Vector DB & LLM Chain
+│       ├── worker.py          # Background job processing
+│       └── metrics.py         # Prometheus observability
 │
-└── frontend/              # React Application
-    ├── src/
-    │   ├── components/    # ChatInterface, Sidebar, etc.
-    │   ├── lib/           # API clients
-    │   └── App.tsx        # Main layout
-    ├── tailwind.config.js # Styling config
-    └── vite.config.ts     # Build config
+├── tests/                     # Backend test suite
+├── frontend/                  # React Application
+│   ├── src/
+│   │   ├── components/        # ChatInterface, Sidebar, etc.
+│   │   ├── lib/               # API clients
+│   │   └── App.tsx            # Main layout
+│   └── vite.config.ts         # Build config
+│
+├── e2e/                       # Playwright E2E tests
+├── requirements.txt           # Python dependencies
+├── Dockerfile                 # Container config
+└── .env                       # API Keys (Not committed)
 ```
-
-## 🤝 Contributing
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
 ## 📄 License
 [MIT](https://choosealicense.com/licenses/mit/)
+
+---
+
+## 📚 Documentation
+
+- **[API Documentation](./API_DOCS.md)** - Complete API reference
+- **[Deployment Guide](./DEPLOYMENT.md)** - Production deployment instructions
+- **[Maintenance Script](./maintenance.py)** - Database optimization and health checks
+
+---
+
+## ✨ Features & Highlights
+
+### Production Ready
+- ✅ Fully implemented RAG pipeline with hybrid retrieval (BM25 + FAISS)
+- ✅ Background job processing for repository ingestion
+- ✅ JWT authentication with guest mode support
+- ✅ Rate limiting and security hardening
+- ✅ Comprehensive error handling and logging
+- ✅ Docker support with multi-stage builds
+- ✅ Health checks and Prometheus metrics
+- ✅ Session management and chat history
+- ✅ Real-time streaming responses (SSE)
+- ✅ AI-powered code diff analysis
+- ✅ Qdrant vector persistence + Celery background ingestion
+- ✅ Strict SSRF-safe repository URL validation
+- ✅ Refresh token rotation with server-side revocation tracking
+- ✅ File upload for contextual chat
+- ✅ Multi-repository support
+- ✅ Export to Markdown/HTML/JSON
+- ✅ WebSocket support for real-time chat
+- ✅ Code search and symbol indexing
+- ✅ Secret scanning and redaction
+
+### Performance Optimizations
+- QA chain caching with 1-hour TTL
+- Batch embedding processing with rate limiting
+- Database connection pooling (production)
+- Frontend code splitting and lazy loading
+- GZip compression for API responses
+- Efficient vector store with FAISS
+- LRU cache eviction for memory management
+
+### Security Features
+- Secret key validation on startup
+- CORS configuration
+- SQL injection prevention (SQLAlchemy ORM)
+- Input validation with Pydantic
+- SSRF protection (GitHub URL validation only)
+- Secret pattern detection and redaction
+- Non-root Docker container user
+- Security headers middleware
+
+---
+
+## 🔧 Maintenance
+
+Run the maintenance script to optimize performance:
+
+```bash
+# Run all maintenance tasks
+python maintenance.py
+
+# Or specific tasks
+python maintenance.py --db-only          # Optimize database
+python maintenance.py --jobs-only        # Cleanup old jobs
+python maintenance.py --repos-only       # Remove stale repos
+python maintenance.py --report-only      # Generate health report
+```
+
+Generates:
+- Database optimization (VACUUM, ANALYZE)
+- Old job cleanup
+- Stale repository removal
+- System health report (saved to `health_report.json`)
+
+---
+
+## 🚀 Next Steps
+
+After initial setup:
+
+1. **Configure production settings** - See [DEPLOYMENT.md](./DEPLOYMENT.md)
+2. **Set up monitoring** - Enable Prometheus metrics scraping
+3. **Configure backups** - Automate database backups
+4. **Scale workers** - Adjust worker count for your load
+5. **Enable HTTPS** - Use reverse proxy (Nginx) with SSL
+
+---
+
+## 🙏 Acknowledgments
+
+Built with:
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [LangChain](https://python.langchain.com/) - LLM application framework
+- [Google Gemini](https://ai.google.dev/) - State-of-the-art LLM
+- [FAISS](https://github.com/facebookresearch/faiss) - Efficient similarity search
+- [React](https://react.dev/) - UI library
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS
+
+---
+
+**Made with ❤️ for developers who want to understand their codebases better.**

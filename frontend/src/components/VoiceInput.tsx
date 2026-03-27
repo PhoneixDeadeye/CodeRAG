@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { logger } from '../lib/logger';
 
 interface VoiceInputProps {
     onTranscript: (text: string) => void;
@@ -75,7 +76,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, disabled }
         };
 
         recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-            console.error('Speech recognition error', event.error);
+            logger.error('Speech recognition error', event.error);
             setIsListening(false);
         };
 
@@ -113,18 +114,18 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, disabled }
             <button
                 onClick={toggleListening}
                 disabled={disabled}
-                className={`flex items-center justify-center size-9 rounded-lg transition-all ${isListening
-                    ? 'bg-red-500/20 text-red-400 animate-pulse'
-                    : 'text-text-secondary hover:text-white hover:bg-border-dark'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                title={isListening ? 'Stop listening' : 'Use Microphone'}
+                className={`flex items-center justify-center size-9 transition-all border border-transparent ${isListening
+                    ? 'bg-accent-rose text-black animate-pulse shadow-[2px_2px_0px_0px_black]'
+                    : 'text-text-secondary hover:text-primary hover:bg-black hover:border-primary'
+                    } disabled:opacity-50 disabled:cursor-not-allowed rounded-none`}
+                title={isListening ? 'STOP_RECORDING' : 'ACTIVATE_VOICE_INPUT'}
             >
-                <span className="material-symbols-outlined text-[20px]">mic</span>
+                <span className="material-symbols-outlined text-[20px]">{isListening ? 'mic_off' : 'mic'}</span>
             </button>
 
             {/* Live transcript indicator */}
             {isListening && transcript && (
-                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-text-secondary whitespace-nowrap animate-fade-in">
+                <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black border border-primary text-xs text-primary whitespace-nowrap animate-fade-in shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)] font-mono uppercase tracking-tight z-50">
                     <span className="material-symbols-outlined text-[12px] inline mr-2 animate-spin">progress_activity</span>
                     {transcript}
                 </div>
@@ -132,8 +133,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, disabled }
 
             {/* Listening indicator */}
             {isListening && !transcript && (
-                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-red-500/20 border border-red-500/30 rounded-lg text-xs text-red-400 whitespace-nowrap animate-fade-in">
-                    🎤 Listening...
+                <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-accent-rose text-black font-bold text-xs whitespace-nowrap animate-fade-in shadow-[4px_4px_0px_0px_black] font-mono uppercase tracking-wider z-50">
+                    LISTENING...
                 </div>
             )}
         </div>

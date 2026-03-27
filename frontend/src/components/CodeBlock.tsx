@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Check, Copy, Terminal } from 'lucide-react';
 
 interface CodeBlockProps {
     language: string;
@@ -18,23 +19,32 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, children, fileNa
     };
 
     return (
-        <div className="rounded-lg overflow-hidden my-4 border border-border-dark/50 shadow-xl bg-[#1e1e1e]">
-            <div className="flex items-center justify-between px-4 py-2 bg-[#2d2d2d] border-b border-white/5">
-                <span className="text-xs font-mono text-gray-400 capitalize flex items-center gap-2">
-                    {fileName && <span className="material-symbols-outlined text-[14px]">description</span>}
-                    {fileName || language}
-                </span>
+        <div className="rounded-none overflow-hidden my-4 border border-border-default bg-bg-surface group/code relative">
+            {/* Brutalist Header */}
+            <div className="flex items-center justify-between px-4 py-2 bg-bg-elevated border-b border-border-default">
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center size-6 bg-black border border-border-default">
+                        <Terminal className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="text-xs font-bold text-text-primary font-mono uppercase tracking-wider">
+                        {fileName || language || 'CODE_SNIPPET'}
+                    </span>
+                </div>
                 <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-primary border border-border-default hover:border-primary text-xs font-bold text-text-secondary hover:text-black transition-all rounded-none uppercase font-mono group/btn"
                 >
-                    <span className="material-symbols-outlined text-[14px]">
-                        {copied ? 'check' : 'content_copy'}
-                    </span>
-                    {copied ? 'Copied' : 'Copy'}
+                    {copied ? (
+                        <Check className="w-3.5 h-3.5" />
+                    ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                    )}
+                    <span>{copied ? 'COPIED' : 'COPY'}</span>
                 </button>
             </div>
-            <div className="relative group">
+
+            {/* Code Content */}
+            <div className="relative border-l-2 border-primary/0 group-hover/code:border-primary/100 transition-colors duration-300">
                 <SyntaxHighlighter
                     language={language || 'text'}
                     style={vscDarkPlus}
@@ -42,10 +52,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, children, fileNa
                         margin: 0,
                         padding: '1.5rem',
                         fontSize: '0.875rem',
-                        lineHeight: '1.5',
-                        backgroundColor: '#1e1e1e'
+                        lineHeight: '1.6',
+                        backgroundColor: '#050505', // Match bg-dark
+                        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
                     }}
                     showLineNumbers={true}
+                    lineNumberStyle={{ minWidth: '3em', paddingRight: '1em', color: '#333333', textAlign: 'right' }}
                     wrapLines={true}
                 >
                     {children}

@@ -1,57 +1,95 @@
 import pytest
-import os
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import pytest_asyncio
+import asyncio
+from typing import Generator, AsyncGenerator
+from httpx import AsyncClient, ASGITransport
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Ensure we set testing env vars before importing app
-os.environ["TESTING"] = "True"
-os.environ["GOOGLE_API_KEY"] = "test_key"  # Mock key for tests
+from app.api.main import app
+from app.core.database import get_db, Base
+from app.api.rate_limiter import login_limiter, chat_limiter, ingest_limiter
 
-from database import Base, get_db
-from api import app
 
-# Use in-memory SQLite for tests
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+# --- Pytest Asyncio Configuration ---
+@pytest.fixture(scope="session")
+def event_loop() -> Generator:
+    """Create an instance of the default event loop for each test session."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-@pytest.fixture(scope="module")
-def test_db():
+@pytest_asyncio.fixture(autouse=True)
+async def clear_rate_limiters():
+    """Clear all rate limiters before each test to prevent 429 errors across tests."""
+    login_limiter.requests.clear()
+    chat_limiter.requests.clear()
+    ingest_limiter.requests.clear()
+
+
+# --- Async Database Fixture (In-Memory SQLite) ---
+@pytest_asyncio.fixture(scope="function")
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Creates a fresh in-memory SQLite database for each test function.
+    """
+    # Use generic SQLite with aiosqlite driver
+    # StaticPool is important for in-memory SQLite with async to keep connection open
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
     # Create tables
-    Base.metadata.create_all(bind=engine)
-    yield TestingSessionLocal
-    # Drop tables
-    Base.metadata.drop_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-@pytest.fixture(scope="module")
-def client(test_db):
-    def override_get_db():
-        try:
-            db = TestingSessionLocal()
-            yield db
-        finally:
-            db.close()
+    # Create session
+    async_session = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+    )
+
+    async with async_session() as session:
+        yield session
+        await session.rollback()
+
+    await engine.dispose()
+
+
+# --- Dependency Override and Client ---
+@pytest_asyncio.fixture(scope="function")
+async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Test client with real in-memory database dependency.
+    """
+
+    # Override get_db to return our in-memory session
+    async def override_get_db():
+        yield db_session
+
+    # Override auth to always return a test user
+    from app.services.auth import get_current_user
+    from app.core.database import User
+
+    async def override_get_current_user():
+        return User(
+            id="test-user-id",
+            email="test@example.com",
+            is_active=True,
+            hashed_password="hashed_secret",  # Needed if accessed
+        )
 
     app.dependency_overrides[get_db] = override_get_db
-
-    # Mock Auth - both required and optional user dependencies
-    from auth import get_current_user, get_optional_user
-    from database import User
-    
-    def override_get_current_user():
-        return User(id="test_user_id", email="test@example.com", hashed_password="test", is_active=True)
-    
-    # Mock both auth dependencies so endpoints using get_optional_user
-    # also run as authenticated user during tests
     app.dependency_overrides[get_current_user] = override_get_current_user
-    app.dependency_overrides[get_optional_user] = override_get_current_user
 
-    with TestClient(app) as c:
-        yield c
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()

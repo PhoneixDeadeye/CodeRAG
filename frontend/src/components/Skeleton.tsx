@@ -72,6 +72,9 @@ export const FileTreeSkeleton: React.FC = () => (
     </div>
 );
 
+// Pre-computed widths to avoid Math.random() during render (React Fast Refresh)
+const CODE_LINE_WIDTHS = ['60%', '75%', '50%', '80%', '65%', '70%', '55%', '85%', '45%', '72%', '68%', '78%', '52%', '88%', '58%'];
+
 export const CodeViewerSkeleton: React.FC = () => (
     <div className="p-4 space-y-2 animate-fade-in">
         <div className="flex items-center gap-2 mb-4">
@@ -79,10 +82,10 @@ export const CodeViewerSkeleton: React.FC = () => (
             <Skeleton height={20} width={60} />
         </div>
         <div className="space-y-1">
-            {Array.from({ length: 15 }).map((_, i) => (
+            {CODE_LINE_WIDTHS.map((width, i) => (
                 <div key={i} className="flex gap-4">
                     <Skeleton height={18} width={30} />
-                    <Skeleton height={18} width={`${40 + Math.random() * 50}%`} />
+                    <Skeleton height={18} width={width} />
                 </div>
             ))}
         </div>

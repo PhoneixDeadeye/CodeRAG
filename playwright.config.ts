@@ -17,7 +17,7 @@ export default defineConfig({
     retries: process.env.CI ? 2 : 0,
 
     // Limit parallel workers on CI
-    workers: process.env.CI ? 1 : undefined,
+    ...(process.env.CI ? { workers: 1 } : {}),
 
     // Reporter config
     reporter: [
@@ -71,7 +71,7 @@ export default defineConfig({
             timeout: 120000,
         },
         {
-            command: 'uvicorn api:app --host 0.0.0.0 --port 8000',
+            command: 'uvicorn app.api.main:app --host 0.0.0.0 --port 8000',
             url: 'http://localhost:8000/health',
             reuseExistingServer: !process.env.CI,
             timeout: 120000,

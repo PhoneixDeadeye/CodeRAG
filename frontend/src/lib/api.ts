@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { getGuestSessionId } from './guestSession';
+import { logger } from './logger';
 
 const api = axios.create({
     baseURL: '/api/v1',
+    timeout: 60000, // 60 second timeout to prevent indefinite hanging
 });
 
 // Request interceptor to add guest session ID for unauthenticated requests
@@ -21,10 +23,24 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     response => response,
     error => {
+        if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+            logger.error("[Timeout] Request timed out");
+            error.isTimeout = true;
+            error.response = error.response || { data: { detail: 'Request timed out. The server may be busy. Please try again.' } };
+        }
         if (error.response?.status === 429) {
             const message = error.response.data.detail || "Too many requests. Please try again later.";
-            console.warn("[Rate Limit]", message);
-            // Components can catch this error and display their own toast/notification
+            logger.warn("[Rate Limit]", message);
+        }
+        if (error.response?.status === 503) {
+            // Service unavailable - usually AI service issues
+            const message = error.response.data.detail || "Service temporarily unavailable. Please try again.";
+            logger.warn("[Service Unavailable]", message);
+        }
+        if (error.response?.status === 502 || error.response?.status === 504) {
+            // Gateway errors
+            error.response.data = error.response.data || {};
+            error.response.data.detail = error.response.data.detail || "Server is temporarily unavailable. Please try again.";
         }
         return Promise.reject(error);
     }
@@ -142,7 +158,6 @@ export interface SessionResponse {
 }
 
 // Config Types
-// Config Types
 export interface AppConfig {
     current_repo: string | null;
     is_guest: boolean;
@@ -179,7 +194,115 @@ export const sendChatMessage = async (query: string, sessionId?: string, repoId?
     return chat(query, repoId, sessionId);
 };
 
-// ...
+// --- SSE Streaming Chat ---
+export interface StreamCallbacks {
+    onToken: (token: string) => void;
+    onSources: (sources: any[]) => void;
+    onSessionId: (sessionId: string) => void;
+    onDone: () => void;
+    onError: (error: string) => void;
+}
+
+export const streamChatMessage = async (
+    query: string,
+    callbacks: StreamCallbacks,
+    sessionId?: string,
+    repoId?: string
+): Promise<void> => {
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+
+    // Add auth token if available
+    const token = api.defaults.headers.common['Authorization'];
+    if (token) {
+        headers['Authorization'] = token as string;
+    } else {
+        const guestId = getGuestSessionId();
+        if (guestId) {
+            headers['X-Guest-Session-ID'] = guestId;
+        }
+    }
+
+    const response = await fetch('/api/v1/chat/stream', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            query,
+            repo_id: repoId,
+            session_id: sessionId,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Stream request failed' }));
+        callbacks.onError(errorData.detail || `HTTP ${response.status}`);
+        return;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+        callbacks.onError('No response body');
+        return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // Parse SSE lines
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+
+                try {
+                    const data = JSON.parse(line.slice(6));
+
+                    switch (data.type) {
+                        case 'token':
+                            callbacks.onToken(data.content);
+                            break;
+                        case 'sources':
+                            callbacks.onSources(data.content);
+                            break;
+                        case 'session_id':
+                            callbacks.onSessionId(data.content);
+                            break;
+                        case 'done':
+                            callbacks.onDone();
+                            break;
+                        case 'error':
+                            callbacks.onError(data.message || 'Unknown streaming error');
+                            break;
+                    }
+                } catch {
+                    // Skip malformed SSE lines
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
+};
+
+export const uploadFile = async (file: File): Promise<{ filename: string, content: string, file_type: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/chat/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    });
+    return response.data;
+};
 
 export const getFileTree = async (repoId?: string): Promise<FileTreeResponse> => {
     const params = repoId ? { repo_id: repoId } : {};
@@ -300,15 +423,7 @@ export const globalSearch = async (
     isRegex: boolean = false,
     caseSensitive: boolean = false
 ): Promise<SearchResponse> => {
-    // Check if backend supports GET /search?q=... or POST
-    // Given the previous code, let's assume POST for complex body or GET for simple.
-    // However, backend typically uses POST for search to handle complex params body.
-    // Let's use GET as implemented in the fix attempt, but ensure backend supports it.
-    // If backend expects POST based on the old code:
-    // const response = await api.post<SearchResponse>('/api/search', { query, is_regex: isRegex, case_sensitive: caseSensitive });
 
-    // Wait, the previous code had `api.get('/search?...')` but also `api.post('/search')`.
-    // I will assume POST is safer for `query` length.
 
     const response = await api.post<SearchResponse>('/search', {
         query,
@@ -379,5 +494,40 @@ export const mergeGuestSession = async (data: GuestMergeRequest): Promise<GuestM
  */
 export const getGuestStatus = async (): Promise<GuestStatusResponse> => {
     const response = await api.get<GuestStatusResponse>('/guest/status');
+    return response.data;
+};
+
+
+// ============ Health Check APIs ============
+
+export interface HealthStatus {
+    status: string;
+    version: string;
+    service: string;
+}
+
+export interface AIHealthStatus {
+    status: 'healthy' | 'degraded' | 'timeout' | 'misconfigured' | 'error' | 'unknown';
+    provider: string;
+    model: string;
+    error?: string;
+    response_sample?: string;
+}
+
+/**
+ * Check backend health status
+ */
+export const checkBackendHealth = async (): Promise<HealthStatus> => {
+    // Use direct axios call since health endpoint is not under /api/v1
+    const response = await axios.get<HealthStatus>('/health', { timeout: 5000 });
+    return response.data;
+};
+
+/**
+ * Check AI service health status
+ */
+export const checkAIHealth = async (): Promise<AIHealthStatus> => {
+    // Use direct axios call since health endpoint is not under /api/v1
+    const response = await axios.get<AIHealthStatus>('/health/ai', { timeout: 15000 });
     return response.data;
 };

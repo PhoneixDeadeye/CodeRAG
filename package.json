@@ -2,6 +2,7 @@
     "name": "coderag-e2e",
     "version": "1.0.0",
     "description": "E2E tests for CodeRAG",
+    "type": "module",
     "main": "index.js",
     "scripts": {
         "test": "playwright test"
@@ -11,6 +12,7 @@
     "license": "ISC",
     "devDependencies": {
         "@playwright/test": "^1.40.0",
+        "@types/node": "^25.3.1",
         "typescript": "^5.0.0"
     }
 }

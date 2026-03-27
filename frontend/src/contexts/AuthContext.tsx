@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { setAuthToken, login as apiLogin, register as apiRegister, mergeGuestSession } from '../lib/api';
 import { getGuestSessionId, exportGuestDataForMerge, clearGuestSession, hasGuestData } from '../lib/guestSession';
+import { logger } from '../lib/logger';
 
-interface User {
+export interface User {
     id: string;
     email: string;
 }
@@ -91,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             return { merged: true, sessionId: result.session_id };
         } catch (error) {
-            console.error('Failed to merge guest session:', error);
+            logger.error('Failed to merge guest session:', error);
             return { merged: false };
         }
     }, []);

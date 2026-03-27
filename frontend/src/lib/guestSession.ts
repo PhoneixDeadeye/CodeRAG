@@ -6,6 +6,8 @@
  * for merging into authenticated accounts.
  */
 
+import { logger } from './logger';
+
 const GUEST_SESSION_KEY = 'coderag_guest_session';
 const GUEST_ID_KEY = 'coderag_guest_id';
 
@@ -58,7 +60,7 @@ export function initGuestSession(): GuestSessionData {
             return session;
         } catch {
             // Corrupted data, create new session
-            console.warn('Guest session data corrupted, creating new session');
+            logger.warn('Guest session data corrupted, creating new session');
         }
     }
 

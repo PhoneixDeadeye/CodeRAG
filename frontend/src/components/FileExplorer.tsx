@@ -3,13 +3,15 @@ import { getFileTree, getFileContent, type FileNode, type FileContentResponse } 
 import { usePinnedFiles } from '../hooks/usePinnedFiles';
 import { useRecentFiles } from '../hooks/useRecentFiles';
 import clsx from 'clsx';
+import { Loader2 } from 'lucide-react';
+import { logger } from '../lib/logger';
 
 interface FileExplorerProps {
     onFileSelect: (file: FileContentResponse) => void;
     onExplainFile: (filePath: string) => void;
     onMultiSelect?: (paths: string[]) => void;
     multiSelectMode?: boolean;
-    repoId?: string; // Added repoId
+    repoId?: string;
 }
 
 const FileTreeItem: React.FC<{
@@ -31,6 +33,13 @@ const FileTreeItem: React.FC<{
     const autoExpand = searchTerm.length > 0;
     const [userExpanded, setUserExpanded] = useState(depth < 2);
     const itemRef = useRef<HTMLDivElement>(null);
+
+    // Effect to handle collapse signal
+    useEffect(() => {
+        if (collapseSignal && depth > 0) {
+            setUserExpanded(false);
+        }
+    }, [collapseSignal, depth]);
 
     const expanded = autoExpand || userExpanded;
 
@@ -70,7 +79,7 @@ const FileTreeItem: React.FC<{
         return (
             <>
                 {name.slice(0, index)}
-                <span className="bg-yellow-400/30 text-yellow-200">{name.slice(index, index + searchTerm.length)}</span>
+                <span className="bg-yellow-400/20 text-yellow-200 rounded-sm px-0.5">{name.slice(index, index + searchTerm.length)}</span>
                 {name.slice(index + searchTerm.length)}
             </>
         );
@@ -82,30 +91,30 @@ const FileTreeItem: React.FC<{
                 <button
                     onClick={() => setUserExpanded(!userExpanded)}
                     className={clsx(
-                        "w-full flex items-center gap-2 px-4 py-1.5 text-sm hover:bg-[#232f48] transition-colors group",
-                        isFocused && "ring-1 ring-primary",
-                        "text-[#92a4c9] hover:text-white"
+                        "w-full flex items-center gap-2 px-4 py-1.5 text-sm transition-all group border-l-2",
+                        isFocused ? "bg-white/5 border-primary" : "border-transparent hover:bg-white/5 hover:border-white/10",
+                        "text-text-secondary hover:text-white"
                     )}
-                    style={{ paddingLeft: `${depth * 28 + 16}px` }}
+                    style={{ paddingLeft: `${depth * 20 + 16}px` }}
                 >
-                    <span className={`material-symbols-outlined text-[20px] transition-transform ${expanded ? '' : '-rotate-90'}`}>
+                    <span className={`material-symbols-outlined text-[20px] transition-transform duration-200 ${expanded ? '' : '-rotate-90'} text-text-muted group-hover:text-text-secondary`}>
                         expand_more
                     </span>
-                    <span className={`material-symbols-outlined text-[20px] ${expanded ? 'text-blue-400' : 'text-blue-400'}`}>
+                    <span className={`material-symbols-outlined text-[20px] transition-colors ${expanded ? 'text-blue-400' : 'text-blue-400/70 group-hover:text-blue-400'}`}>
                         {expanded ? 'folder_open' : 'folder'}
                     </span>
-                    <span className="text-sm font-medium">{node.name}</span>
+                    <span className="text-sm font-medium truncate">{node.name}</span>
                     {node.children && (
-                        <span className="text-[10px] text-text-secondary ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-[10px] text-text-muted ml-auto bg-white/5 px-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                             {node.children.length}
                         </span>
                     )}
                 </button>
-                {expanded && node.children && (
-                    <div className="flex flex-col border-l border-[#232f48]" style={{ marginLeft: `${depth * 28 + 28}px` }}>
-                        {node.children.map((child, i) => (
+                <div className={`grid transition-all duration-200 ease-in-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                    <div className="overflow-hidden">
+                        {node.children && node.children.map((child, i) => (
                             <FileTreeItem
-                                key={`${i}-${collapseSignal}`}
+                                key={`${child.path}-${i}`}
                                 node={child}
                                 depth={depth + 1}
                                 onFileSelect={onFileSelect}
@@ -122,7 +131,7 @@ const FileTreeItem: React.FC<{
                             />
                         ))}
                     </div>
-                )}
+                </div>
             </div>
         );
     }
@@ -131,14 +140,14 @@ const FileTreeItem: React.FC<{
         <div
             ref={itemRef}
             className={clsx(
-                "group flex items-center justify-between gap-2 px-4 py-1.5 transition-colors cursor-pointer animate-fade-in",
+                "group flex items-center justify-between gap-2 px-4 py-1.5 transition-all cursor-pointer animate-fade-in border-l-2",
                 isSelected
-                    ? "bg-primary/10 border-r-2 border-primary"
-                    : "hover:bg-[#232f48]",
-                isFocused && "ring-1 ring-primary",
-                isMultiSelected && "bg-emerald-600/20 border-r-2 border-emerald-500"
+                    ? "bg-primary/10 border-primary text-white"
+                    : "border-transparent hover:bg-white/5 hover:border-white/10 text-text-secondary hover:text-white",
+                isFocused && !isSelected && "bg-white/5 border-primary/50",
+                isMultiSelected && "bg-emerald-500/10 border-emerald-500"
             )}
-            style={{ paddingLeft: `${depth * 28 + 16}px` }}
+            style={{ paddingLeft: `${depth * 20 + 16}px` }}
             onClick={() => {
                 if (multiSelectMode && onToggleMultiSelect) {
                     onToggleMultiSelect(node.path);
@@ -147,30 +156,34 @@ const FileTreeItem: React.FC<{
                 }
             }}
         >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 truncate">
                 {multiSelectMode && (
-                    <input
-                        type="checkbox"
-                        checked={isMultiSelected}
-                        onChange={() => onToggleMultiSelect?.(node.path)}
-                        className="w-3 h-3 rounded bg-border-dark border-border-dark text-emerald-500"
-                        onClick={(e) => e.stopPropagation()}
-                    />
+                    <div className="relative flex items-center">
+                        <input
+                            type="checkbox"
+                            checked={isMultiSelected}
+                            onChange={() => onToggleMultiSelect?.(node.path)}
+                            className="peer appearance-none w-3.5 h-3.5 rounded border border-white/20 bg-slate-800 checked:bg-emerald-500 checked:border-emerald-500 transition-colors cursor-pointer"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="material-symbols-outlined text-[10px] text-white absolute inset-0 pointer-events-none opacity-0 peer-checked:opacity-100 flex items-center justify-center">check</span>
+                    </div>
                 )}
-                <span className="material-symbols-outlined text-[20px] text-[#3178c6]">description</span>
+                <span className={`material-symbols-outlined text-[18px] transition-colors ${isSelected ? 'text-primary' : 'text-blue-400/70 group-hover:text-blue-400'}`}>description</span>
                 <span className={clsx(
-                    "text-sm truncate",
-                    isSelected ? "font-bold text-white" : "font-medium text-[#92a4c9] group-hover:text-white"
+                    "text-sm truncate transition-colors",
+                    isSelected ? "font-medium" : ""
                 )}>{highlightMatch(node.name)}</span>
             </div>
+
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={(e) => { e.stopPropagation(); onTogglePin(node.path); }}
                     className={clsx(
                         "p-1 rounded transition-all",
                         isPinned(node.path)
-                            ? "text-yellow-400 hover:bg-yellow-500/20"
-                            : "text-text-secondary hover:bg-border-dark"
+                            ? "text-yellow-400 bg-yellow-400/10"
+                            : "text-text-muted hover:text-white hover:bg-white/10"
                     )}
                     title={isPinned(node.path) ? "Unpin" : "Pin to top"}
                 >
@@ -180,10 +193,10 @@ const FileTreeItem: React.FC<{
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); onExplainFile(node.path); }}
-                    className="p-1 hover:bg-primary/20 rounded transition-all"
+                    className="p-1 text-text-muted hover:text-primary hover:bg-primary/10 rounded transition-all"
                     title="Explain this file"
                 >
-                    <span className="material-symbols-outlined text-[14px] text-yellow-400">auto_awesome</span>
+                    <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
                 </button>
             </div>
         </div>
@@ -195,7 +208,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     onExplainFile,
     onMultiSelect,
     multiSelectMode = false,
-    repoId // Destructure repoId
+    repoId
 }) => {
     const [tree, setTree] = useState<FileNode[]>([]);
     const [repoUrl, setRepoUrl] = useState<string | null>(null);
@@ -208,14 +221,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const [collapseSignal, setCollapseSignal] = useState(0);
 
     const { pinnedFiles, togglePin, isPinned } = usePinnedFiles();
-    const { recentFiles, addRecentFile } = useRecentFiles();
+    const { addRecentFile } = useRecentFiles();
     const containerRef = useRef<HTMLDivElement>(null);
 
     const loadTree = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await getFileTree(repoId); // Pass repoId
+            const data = await getFileTree(repoId);
             setTree(data.tree);
             setRepoUrl(data.repo_url);
         } catch (err: unknown) {
@@ -228,11 +241,10 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
     useEffect(() => {
         loadTree();
-
         const handleRefresh = () => loadTree();
         window.addEventListener('refreshFileTree', handleRefresh);
         return () => window.removeEventListener('refreshFileTree', handleRefresh);
-    }, [loadTree]); // Changed dependency to loadTree which depends on repoId
+    }, [loadTree]);
 
     // Flatten tree for keyboard navigation
     const flattenedPaths = useMemo(() => {
@@ -250,13 +262,13 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const handleFileSelect = useCallback(async (path: string) => {
         setSelectedPath(path);
         try {
-            const content = await getFileContent(path, repoId); // Pass repoId
+            const content = await getFileContent(path, repoId);
             onFileSelect(content);
             addRecentFile(content);
         } catch (err) {
-            console.error('Failed to load file', err);
+            logger.error('Failed to load file', err);
         }
-    }, [onFileSelect, addRecentFile, repoId]); // Added repoId dependency
+    }, [onFileSelect, addRecentFile, repoId]);
 
     // Keyboard navigation
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -299,28 +311,39 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
     if (loading) {
         return (
-            <div className="p-4 space-y-3 animate-fade-in">
-                <div className="skeleton h-4 w-1/2" />
-                <div className="skeleton h-4 w-3/4" />
-                <div className="skeleton h-4 w-2/3" />
-                <div className="skeleton h-4 w-1/2" />
+            <div className="flex flex-col items-center justify-center p-8 space-y-4 animate-fade-in text-text-muted">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="text-sm">Indexing repository structure...</span>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="p-4 text-red-400 text-sm glass-light m-2 rounded-lg border border-red-500/20">
-                {error}
+            <div className="p-6 text-center">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm mb-4">
+                    {error}
+                </div>
+                <button
+                    onClick={loadTree}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-white transition-colors"
+                >
+                    Retry
+                </button>
             </div>
         );
     }
 
     if (tree.length === 0) {
         return (
-            <div className="p-4 text-center text-slate-500 text-sm">
-                <p className="mb-1">No files indexed yet</p>
-                <p className="text-xs text-slate-600">Ingest a repository first</p>
+            <div className="p-8 text-center text-text-secondary flex flex-col items-center gap-3">
+                <div className="size-12 rounded-xl bg-white/5 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-3xl opacity-50">folder_off</span>
+                </div>
+                <div>
+                    <p className="font-medium text-white mb-1">No files indexed</p>
+                    <p className="text-xs">Ingest a repository to start exploring</p>
+                </div>
             </div>
         );
     }
@@ -328,53 +351,55 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     return (
         <div
             ref={containerRef}
-            className="h-full flex flex-col overflow-hidden"
+            className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-transparent to-black/20"
             tabIndex={0}
             onKeyDown={handleKeyDown}
         >
             {/* Header with search */}
-            <div className="p-2 border-b border-slate-700/50 space-y-2">
+            <div className="p-3 border-b border-white/5 space-y-3 bg-black/10 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">Files</span>
-                        <span className="text-[10px] text-text-secondary bg-border-dark px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">Explorer</span>
+                        <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded font-mono">
                             {fileCount}
                         </span>
                     </div>
-                    {repoUrl && (
-                        <a
-                            href={repoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1 hover:bg-border-dark rounded transition-all text-primary hover:text-blue-300"
-                            title="Open in GitHub"
+                    <div className="flex items-center gap-1">
+                        {repoUrl && (
+                            <a
+                                href={repoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-text-secondary hover:text-white"
+                                title="Open in GitHub"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                            </a>
+                        )}
+                        <button
+                            onClick={() => setCollapseSignal(Date.now())}
+                            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-text-secondary hover:text-white"
+                            title="Collapse All Folders"
                         >
-                            <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                        </a>
-                    )}
-                    <button
-                        onClick={() => setCollapseSignal(Date.now())}
-                        className="p-1 hover:bg-border-dark rounded transition-all text-text-secondary hover:text-white"
-                        title="Collapse All Folders"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">unfold_less</span>
-                    </button>
+                            <span className="material-symbols-outlined text-[16px]">unfold_less</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Search input */}
                 <div className="relative group">
-                    <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-text-secondary group-focus-within:text-primary transition-colors">search</span>
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-text-muted group-focus-within:text-primary transition-colors">search</span>
                     <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search files..."
-                        className="w-full bg-[#0d1117] border border-border-dark rounded-lg pl-8 pr-8 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-text-secondary"
+                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-9 pr-8 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all placeholder:text-text-muted"
                     />
                     {searchTerm && (
                         <button
                             onClick={() => setSearchTerm('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-border-dark rounded transition-all text-text-secondary hover:text-white"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors text-text-muted hover:text-white"
                         >
                             <span className="material-symbols-outlined text-[14px]">close</span>
                         </button>
@@ -384,11 +409,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
             {/* Multi-select context badge */}
             {multiSelectMode && selectedPaths.length > 0 && (
-                <div className="px-2 py-1.5 bg-emerald-600/20 border-b border-emerald-500/30 text-xs text-emerald-300 flex items-center justify-between">
-                    <span>{selectedPaths.length} files selected for context</span>
+                <div className="px-3 py-2 bg-emerald-500/10 border-b border-emerald-500/20 text-xs flex items-center justify-between backdrop-blur-sm">
+                    <span className="text-emerald-300 font-medium flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px]">layers</span>
+                        {selectedPaths.length} selected
+                    </span>
                     <button
                         onClick={() => setSelectedPaths([])}
-                        className="text-emerald-400 hover:text-emerald-200"
+                        className="text-emerald-400 hover:text-white transition-colors text-[10px] uppercase font-bold tracking-wide"
                     >
                         Clear
                     </button>
@@ -397,8 +425,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
             {/* Pinned files section */}
             {pinnedFiles.length > 0 && (
-                <div className="border-b border-border-dark">
-                    <div className="px-3 py-1.5 text-[10px] text-yellow-400 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="border-b border-white/5 bg-white/[0.02]">
+                    <div className="px-4 py-2 text-[10px] text-yellow-500/80 font-bold uppercase tracking-wider flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[14px]">push_pin</span>
                         Pinned
                     </div>
@@ -406,15 +434,15 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                         <div
                             key={path}
                             className={clsx(
-                                "group flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer transition-all",
+                                "group flex items-center gap-2 px-4 py-2 text-sm cursor-pointer transition-all border-l-2",
                                 selectedPath === path
-                                    ? "bg-primary/10 text-white"
-                                    : "text-text-secondary hover:bg-border-dark"
+                                    ? "bg-primary/10 border-primary text-white"
+                                    : "border-transparent text-text-secondary hover:bg-white/5 hover:border-white/10 hover:text-white"
                             )}
                             onClick={() => handleFileSelect(path)}
                         >
-                            <span className="material-symbols-outlined text-[18px] text-[#3178c6]">description</span>
-                            <span className="truncate flex-1">{path.split('/').pop()}</span>
+                            <span className="material-symbols-outlined text-[18px] text-blue-400/80">description</span>
+                            <span className="truncate flex-1 font-mono text-xs">{path.split('/').pop()}</span>
                             <button
                                 onClick={(e) => { e.stopPropagation(); togglePin(path); }}
                                 className="p-1 text-yellow-400 hover:bg-yellow-500/20 rounded opacity-0 group-hover:opacity-100 transition-all"
@@ -426,33 +454,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                 </div>
             )}
 
-            {/* Recent files section */}
-            {recentFiles.length > 0 && (
-                <div className="border-b border-border-dark">
-                    <div className="px-3 py-1.5 text-[10px] text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[14px]">schedule</span>
-                        Recent
-                    </div>
-                    {recentFiles.slice(0, 3).map(file => (
-                        <div
-                            key={file.path}
-                            className={clsx(
-                                "group flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer transition-all",
-                                selectedPath === file.path
-                                    ? "bg-primary/10 text-white"
-                                    : "text-text-secondary hover:bg-border-dark"
-                            )}
-                            onClick={() => handleFileSelect(file.path)}
-                        >
-                            <span className="material-symbols-outlined text-[18px] text-text-secondary">description</span>
-                            <span className="truncate flex-1">{file.path.split('/').pop()}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
-
             {/* File tree */}
-            <div className="flex-1 overflow-y-auto py-1">
+            <div className="flex-1 overflow-y-auto py-2 scrollbar-thin">
                 {tree.map((node, i) => (
                     <FileTreeItem
                         key={i}
@@ -474,8 +477,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             </div>
 
             {/* Footer hint */}
-            <div className="px-3 py-1.5 border-t border-slate-700/50 text-[10px] text-slate-600">
-                ↑↓ Navigate • Enter to open • Click ⭐ to explain
+            <div className="px-4 py-2 border-t border-white/5 text-[10px] text-text-muted bg-black/20 flex justify-center">
+                <span className="opacity-60">Use arrow keys to navigate</span>
             </div>
         </div>
     );

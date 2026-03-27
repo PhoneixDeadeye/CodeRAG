@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '../lib/logger';
 
 interface UserPreferences {
     sidebarOpen: boolean;
@@ -34,7 +35,7 @@ export const usePreferences = () => {
                 return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
             }
         } catch (e) {
-            console.warn('Failed to load preferences from localStorage:', e);
+            logger.warn('Failed to load preferences from localStorage:', e);
         }
         return DEFAULT_PREFERENCES;
     });
@@ -44,7 +45,7 @@ export const usePreferences = () => {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
         } catch (e) {
-            console.warn('Failed to save preferences to localStorage:', e);
+            logger.warn('Failed to save preferences to localStorage:', e);
         }
     }, [preferences]);
 
